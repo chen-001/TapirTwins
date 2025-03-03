@@ -189,13 +189,13 @@ class APIService {
     
     // MARK: - 任务API
     
-    func fetchTasks(completion: @escaping (Result<[Task], APIError>) -> Void) {
-        print("【API调用】: 开始请求 GET /tasks 接口")
+    func fetchTasks(completion: @escaping (Result<[TapirTask], APIError>) -> Void) {
+        print("【API调用】: 开始请求 GET \(APIConfig.TapirTask.base) 接口")
         
-        request(endpoint: "tasks", method: "GET") { (result: Result<[Task], APIError>) in
+        request(endpoint: "tasks", method: "GET") { (result: Result<[TapirTask], APIError>) in
             switch result {
             case .success(let tasks):
-                print("【API调用】: GET /tasks 成功，返回 \(tasks.count) 个任务")
+                print("【API调用】: GET \(APIConfig.TapirTask.base) 成功，返回 \(tasks.count) 个任务")
                 if tasks.isEmpty {
                     print("【API调用】: 警告 - 返回的任务列表为空")
                 } else {
@@ -203,17 +203,17 @@ class APIService {
                 }
                 completion(.success(tasks))
             case .failure(let error):
-                print("【API调用】: GET /tasks 失败，错误: \(error)")
+                print("【API调用】: GET \(APIConfig.TapirTask.base) 失败，错误: \(error)")
                 completion(.failure(error))
             }
         }
     }
     
-    func fetchTask(id: String, completion: @escaping (Result<Task, APIError>) -> Void) {
+    func fetchTask(id: String, completion: @escaping (Result<TapirTask, APIError>) -> Void) {
         request(endpoint: "tasks/\(id)", method: "GET", completion: completion)
     }
     
-    func createTask(task: TaskRequest, completion: @escaping (Result<Task, APIError>) -> Void) {
+    func createTask(task: TaskRequest, completion: @escaping (Result<TapirTask, APIError>) -> Void) {
         guard let body = try? JSONEncoder().encode(task) else {
             completion(.failure(.unknown))
             return
@@ -222,7 +222,7 @@ class APIService {
         request(endpoint: "tasks", method: "POST", body: body, completion: completion)
     }
     
-    func updateTask(id: String, task: TaskRequest, completion: @escaping (Result<Task, APIError>) -> Void) {
+    func updateTask(id: String, task: TaskRequest, completion: @escaping (Result<TapirTask, APIError>) -> Void) {
         guard let body = try? JSONEncoder().encode(task) else {
             completion(.failure(.unknown))
             return
@@ -243,14 +243,14 @@ class APIService {
     }
     
     func fetchTaskRecords(taskId: String, completion: @escaping (Result<[TaskRecord], APIError>) -> Void) {
-        request(endpoint: "tasks/\(taskId)/records", method: "GET", completion: completion)
+        request(endpoint: APIConfig.TapirTask.records(id: taskId).replacingOccurrences(of: "\(baseURL)/", with: ""), method: "GET", completion: completion)
     }
     
     func fetchTodayRecords(completion: @escaping (Result<[TaskRecord], APIError>) -> Void) {
-        request(endpoint: "tasks/records/today", method: "GET", completion: completion)
+        request(endpoint: APIConfig.TapirTask.todayRecords.replacingOccurrences(of: "\(baseURL)/", with: ""), method: "GET", completion: completion)
     }
     
-    func deleteTask(id: String, completion: @escaping (Result<Task, APIError>) -> Void) {
+    func deleteTask(id: String, completion: @escaping (Result<TapirTask, APIError>) -> Void) {
         request(endpoint: "tasks/\(id)", method: "DELETE", completion: completion)
     }
     
@@ -267,5 +267,39 @@ class APIService {
         }
         
         request(endpoint: "user/settings", method: "PUT", body: body, completion: completion)
+    }
+    
+    // MARK: - 任务统计相关
+    
+    func fetchMonthlyTaskStats(month: String, completion: @escaping (Result<MonthlyTaskStats, APIError>) -> Void) {
+        request(endpoint: "tasks/stats/monthly/\(month)",
+                method: "GET") { (result: Result<MonthlyTaskStats, APIError>) in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let stats):
+                    print("成功获取\(month)月任务统计数据")
+                    completion(.success(stats))
+                case .failure(let error):
+                    print("获取任务统计数据失败: \(error)")
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+    
+    func triggerTaskStatsUpdate(completion: @escaping (Result<APIResponse, APIError>) -> Void) {
+        request(endpoint: "tasks/stats/update",
+                method: "POST") { (result: Result<APIResponse, APIError>) in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let response):
+                    print("成功触发任务统计数据更新: \(response.message)")
+                    completion(.success(response))
+                case .failure(let error):
+                    print("触发任务统计数据更新失败: \(error)")
+                    completion(.failure(error))
+                }
+            }
+        }
     }
 }

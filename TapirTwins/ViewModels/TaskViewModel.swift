@@ -3,10 +3,12 @@ import SwiftUI
 import UIKit
 
 class TaskViewModel: ObservableObject {
-    @Published var tasks: [Task] = []
+    @Published var tasks: [TapirTask] = []
     @Published var taskRecords: [TaskRecord] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var monthlyTaskStats: MonthlyTaskStats?
+    @Published var isLoadingStats = false
     
     private let apiService = APIService.shared
     private let spaceService = SpaceService.shared
@@ -44,7 +46,7 @@ class TaskViewModel: ObservableObject {
         }
     }
     
-    private func fetchSpaceTasksAndMerge(spaceId: String, personalTasks: [Task]) {
+    private func fetchSpaceTasksAndMerge(spaceId: String, personalTasks: [TapirTask]) {
         print("开始获取空间任务，空间ID: \(spaceId)")
         
         spaceService.fetchSpaceTasks(spaceId: spaceId) { [weak self] result in
@@ -73,7 +75,7 @@ class TaskViewModel: ObservableObject {
         }
     }
     
-    private func sortAndSetTasks(_ tasks: [Task]) {
+    private func sortAndSetTasks(_ tasks: [TapirTask]) {
         // 按照完成状态和截止日期排序
         self.tasks = tasks.sorted { task1, task2 in
             if task1.completedToday != task2.completedToday {
@@ -308,7 +310,7 @@ class TaskViewModel: ObservableObject {
     }
     
     // 检查用户是否有审批权限
-    func checkUserIsApprover(userId: String, task: Task) -> Bool {
+    func checkUserIsApprover(userId: String, task: TapirTask) -> Bool {
         // 如果任务没有spaceId，则不是空间任务
         guard let spaceId = task.spaceId else {
             return false
@@ -328,6 +330,29 @@ class TaskViewModel: ObservableObject {
         // 注意：这种实现方式在实际应用中可能会有问题，因为SpaceViewModel需要时间来获取空间信息
         // 更好的方式是在应用启动时预加载空间信息，或者使用回调方式异步检查权限
         return spaceViewModel.checkUserIsApprover(userId: userId, task: task)
+    }
+    
+    func fetchMonthlyTaskStats(month: String, completion: @escaping (Bool) -> Void) {
+        isLoadingStats = true
+        errorMessage = nil
+        
+        print("开始获取\(month)月份任务统计...")
+        
+        apiService.fetchMonthlyTaskStats(month: month) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoadingStats = false
+                
+                switch result {
+                case .success(let stats):
+                    self?.monthlyTaskStats = stats
+                    completion(true)
+                    print("月度任务统计数据获取完成，共有 \(stats.dailyStats.count) 天的数据")
+                case .failure(let error):
+                    self?.handleError(error)
+                    completion(false)
+                }
+            }
+        }
     }
     
     private func handleError(_ error: APIError) {

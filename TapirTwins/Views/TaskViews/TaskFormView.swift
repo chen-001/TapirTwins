@@ -2,7 +2,7 @@ import SwiftUI
 
 enum TaskFormMode {
     case add
-    case edit(Task)
+    case edit(TapirTask)
 }
 
 struct TaskFormView: View {
@@ -40,7 +40,7 @@ struct TaskFormView: View {
         }
     }
     
-    private var task: Task? {
+    private var task: TapirTask? {
         switch mode {
         case .add:
             return nil

@@ -130,7 +130,7 @@ struct ImagePicker: UIViewControllerRepresentable {
 
 // 提交任务视图
 struct SubmitTaskView: View {
-    let task: Task
+    let task: TapirTask
     @ObservedObject var viewModel: SpaceViewModel
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedImages: [UIImage] = []
@@ -208,7 +208,7 @@ struct SubmitTaskView: View {
 
 // 拒绝任务视图
 struct RejectTaskView: View {
-    let task: Task
+    let task: TapirTask
     @ObservedObject var viewModel: SpaceViewModel
     @Binding var rejectReason: String
     @Binding var selectedRecord: TaskRecord?
@@ -270,7 +270,7 @@ struct RejectTaskView: View {
 
 // 审批任务视图
 struct ApproveTaskView: View {
-    let task: Task
+    let task: TapirTask
     @ObservedObject var viewModel: SpaceViewModel
     @State private var approveComment: String = ""
     @Binding var selectedRecord: TaskRecord?
@@ -328,9 +328,9 @@ struct ApproveTaskView: View {
 
 // 任务审核视图
 struct TaskApprovalView: View {
-    let tasks: [Task]
+    let tasks: [TapirTask]
     @ObservedObject var viewModel: SpaceViewModel
-    @State private var selectedTask: Task? = nil
+    @State private var selectedTask: TapirTask? = nil
     @State private var selectedRecord: TaskRecord? = nil
     @State private var showingApproveAlert = false
     @State private var showingRejectSheet = false
@@ -490,7 +490,7 @@ struct TaskApprovalView: View {
 
 // 任务详情卡片组件
 struct TaskDetailCard: View {
-    let task: Task
+    let task: TapirTask
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

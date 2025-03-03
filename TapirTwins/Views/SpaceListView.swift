@@ -61,7 +61,7 @@ struct SpaceListView: View {
                             }
                         }
                         .listStyle(InsetGroupedListStyle())
-                        .background(Color("Background"))
+                        .background(Color(UIColor.systemBackground))
                     }
                 }
                 

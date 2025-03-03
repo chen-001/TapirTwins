@@ -3,7 +3,7 @@ import Combine
 import UIKit
 
 struct SpaceTaskDetailView: View {
-    let task: Task
+    let task: TapirTask
     @StateObject private var viewModel = SpaceViewModel()
     @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var showingSubmitTask = false

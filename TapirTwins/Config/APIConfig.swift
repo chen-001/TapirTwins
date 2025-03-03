@@ -3,7 +3,7 @@ import Foundation
 /// API配置类，用于集中管理所有API相关的URL配置
 struct APIConfig {
     // 默认基础URL
-    static let defaultBaseURL = "http://103.218.240.138:8081/api"
+    static let defaultBaseURL = "http://localhost:8081/api"
     
     // 用于存储自定义API地址的UserDefaults键
     private static let customAPIURLKey = "customAPIURL"
@@ -162,7 +162,7 @@ struct APIConfig {
     }
     
     // 任务服务相关URL
-    struct Task {
+    struct TapirTask {
         static var base: String {
             return "\(baseURL)/tasks"
         }

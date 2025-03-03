@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 
 struct TaskCompleteView: View {
-    let task: Task
+    let task: TapirTask
     @ObservedObject var viewModel: TaskViewModel
     @Environment(\.presentationMode) var presentationMode
     
@@ -205,7 +205,7 @@ struct TaskCompleteView: View {
 
 struct TaskCompleteView_Previews: PreviewProvider {
     static var previews: some View {
-        let task = Task(
+        let task = TapirTask(
             id: "1",
             title: "测试任务",
             description: "这是一个测试任务",

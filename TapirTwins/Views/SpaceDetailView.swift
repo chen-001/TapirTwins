@@ -595,7 +595,7 @@ struct SpaceDreamRow: View {
 
 // 任务行
 struct SpaceTaskRow: View {
-    let task: Task
+    let task: TapirTask
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

@@ -20,7 +20,9 @@ class AuthService {
     
     // 保存认证信息
     func saveAuthInfo(token: String, user: User) {
+        print("保存认证信息: token=\(token), userId=\(user.id)")
         userDefaults.set(token, forKey: tokenKey)
+        userDefaults.set(Date().timeIntervalSince1970, forKey: "\(tokenKey)_time")
         
         if let userData = try? JSONEncoder().encode(user) {
             userDefaults.set(userData, forKey: userKey)
@@ -38,7 +40,36 @@ class AuthService {
     
     // 获取认证令牌
     func getToken() -> String? {
-        return userDefaults.string(forKey: tokenKey)
+        let token = userDefaults.string(forKey: tokenKey)
+        print("获取认证令牌: \(token ?? "无令牌")")
+        
+        // 检查令牌是否已过期
+        if let token = token, isTokenExpired(token) {
+            print("令牌已过期，移除令牌")
+            userDefaults.removeObject(forKey: tokenKey)
+            return nil
+        }
+        
+        return token
+    }
+    
+    // 检查令牌是否过期
+    private func isTokenExpired(_ token: String) -> Bool {
+        // 这里可以添加令牌过期检查逻辑
+        // 实际应用中，可以解析JWT令牌，检查exp字段
+        // 简单实现：假设24小时后过期
+        
+        // 获取令牌保存时间
+        let tokenSavedTime = userDefaults.double(forKey: "\(tokenKey)_time")
+        if tokenSavedTime > 0 {
+            let currentTime = Date().timeIntervalSince1970
+            let tokenAge = currentTime - tokenSavedTime
+            let isExpired = tokenAge > 86400 // 24小时
+            print("令牌年龄: \(Int(tokenAge))秒, 是否过期: \(isExpired)")
+            return isExpired
+        }
+        
+        return false
     }
     
     // 检查是否已登录

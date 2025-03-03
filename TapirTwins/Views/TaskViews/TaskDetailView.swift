@@ -17,7 +17,7 @@ fileprivate let themeGradient = LinearGradient(
 )
 
 struct TaskDetailView: View {
-    let task: Task
+    let task: TapirTask
     @ObservedObject var viewModel: TaskViewModel
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
@@ -516,7 +516,7 @@ struct TaskDetailView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
             TaskDetailView(
-                task: Task(
+                task: TapirTask(
                     id: "1",
                     title: "测试任务",
                     description: "这是一个测试任务的描述",

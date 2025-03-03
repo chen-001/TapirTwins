@@ -5,7 +5,7 @@ class SpaceViewModel: ObservableObject {
     @Published var spaces: [Space] = []
     @Published var currentSpace: Space?
     @Published var spaceDreams: [Dream] = []
-    @Published var spaceTasks: [Task] = []
+    @Published var spaceTasks: [TapirTask] = []
     @Published var taskRecords: [TaskRecord] = []
     @Published var todayRecords: [TaskRecord] = []
     
@@ -682,7 +682,7 @@ class SpaceViewModel: ObservableObject {
     }
     
     // 检查用户是否是指定的任务打卡者
-    func checkUserIsAssignedSubmitter(userId: String, task: Task) -> Bool {
+    func checkUserIsAssignedSubmitter(userId: String, task: TapirTask) -> Bool {
         // 如果任务没有指定打卡者，任何成员都可以打卡
         if task.assignedSubmitterId == nil {
             return true
@@ -786,7 +786,7 @@ class SpaceViewModel: ObservableObject {
     }
     
     // 公共方法：检查用户是否有审批权限
-    func checkUserIsApprover(userId: String, task: Task) -> Bool {
+    func checkUserIsApprover(userId: String, task: TapirTask) -> Bool {
         // 如果任务没有spaceId，则不是空间任务
         guard let spaceId = task.spaceId else {
             return false

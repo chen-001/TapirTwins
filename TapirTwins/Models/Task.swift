@@ -1,6 +1,6 @@
 import Foundation
 
-struct Task: Identifiable, Codable {
+struct TapirTask: Identifiable, Codable {
     let id: String
     let title: String
     let description: String?

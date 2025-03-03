@@ -47,6 +47,204 @@ struct SettingsView: View {
                                 .foregroundColor(.red)
                         }
                     }
+                    
+                    Divider()
+                    
+                    Toggle(isOn: $viewModel.dreamReminderEnabled) {
+                        VStack(alignment: .leading) {
+                            Text("每日梦境提醒")
+                                .font(.headline)
+                            
+                            Text("在指定时间提醒你记录昨晚的梦境")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .onChange(of: viewModel.dreamReminderEnabled) { newValue in
+                        if newValue {
+                            // 如果用户启用了提醒，检查并请求通知权限
+                            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                                DispatchQueue.main.async {
+                                    if settings.authorizationStatus != .authorized {
+                                        viewModel.requestNotificationPermission { granted in
+                                            if !granted {
+                                                // 若用户拒绝了权限，显示提示
+                                                viewModel.errorMessage = "无法发送提醒，请在设备设置中允许应用发送通知。"
+                                            }
+                                        }
+                                    } else {
+                                        // 权限已获取，更新设置
+                                        viewModel.updateDreamReminderSettings(
+                                            enabled: newValue,
+                                            time: viewModel.dreamReminderTime
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // 用户禁用了提醒，直接更新设置
+                            viewModel.updateDreamReminderSettings(
+                                enabled: false,
+                                time: viewModel.dreamReminderTime
+                            )
+                        }
+                    }
+                    
+                    if viewModel.dreamReminderEnabled {
+                        DatePicker(
+                            "提醒时间",
+                            selection: $viewModel.dreamReminderTime,
+                            displayedComponents: .hourAndMinute
+                        )
+                        .onChange(of: viewModel.dreamReminderTime) { newValue in
+                            viewModel.updateDreamReminderSettings(
+                                enabled: viewModel.dreamReminderEnabled,
+                                time: newValue
+                            )
+                        }
+                    }
+                    
+                    // 新增：梦境分析时间范围设置
+                    VStack(alignment: .leading) {
+                        Text("梦境分析时间范围")
+                            .font(.headline)
+                        
+                        Picker("", selection: $viewModel.dreamAnalysisTimeRange) {
+                            ForEach(AnalysisTimeRange.allCases, id: \.self) { timeRange in
+                                Text(timeRange.displayName).tag(timeRange)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .onChange(of: viewModel.dreamAnalysisTimeRange) { newValue in
+                            viewModel.updateDreamAnalysisTimeRange(timeRange: newValue)
+                        }
+                        
+                        Text("设置分析多长时间内的梦境记录")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding(.top, 4)
+                    }
+                    .padding(.vertical, 8)
+                    
+                    // 新增：梦境报告类型设置
+                    VStack(alignment: .leading) {
+                        Text("梦境报告类型")
+                            .font(.headline)
+                        
+                        Picker("", selection: $viewModel.dreamReportTimeRange) {
+                            ForEach(ReportTimeRange.allCases, id: \.self) { reportType in
+                                Text(reportType.displayName).tag(reportType)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .onChange(of: viewModel.dreamReportTimeRange) { newValue in
+                            viewModel.updateDreamReportTimeRange(timeRange: newValue)
+                        }
+                        
+                        Text("设置梦境报告类型")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding(.top, 4)
+                    }
+                    .padding(.vertical, 8)
+                }
+                
+                Section(header: Text("AI内容设置")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("解梦字数")
+                            .font(.headline)
+                        
+                        HStack {
+                            Slider(value: Binding<Double>(
+                                get: { Double(viewModel.interpretationLength) },
+                                set: { viewModel.interpretationLength = Int($0) }
+                            ), in: 200...800, step: 50)
+                            .onChange(of: viewModel.interpretationLength) { newValue in
+                                viewModel.updateAIOutputLengths(
+                                    interpretation: viewModel.interpretationLength,
+                                    continuation: viewModel.continuationLength,
+                                    prediction: viewModel.predictionLength
+                                )
+                            }
+                            
+                            Text("\(viewModel.interpretationLength)字")
+                                .foregroundColor(.gray)
+                                .frame(width: 60, alignment: .trailing)
+                        }
+                        
+                        Text("设置AI生成解梦内容的字数")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 4)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("续写字数")
+                            .font(.headline)
+                        
+                        HStack {
+                            Slider(value: Binding<Double>(
+                                get: { Double(viewModel.continuationLength) },
+                                set: { viewModel.continuationLength = Int($0) }
+                            ), in: 200...800, step: 50)
+                            .onChange(of: viewModel.continuationLength) { newValue in
+                                viewModel.updateAIOutputLengths(
+                                    interpretation: viewModel.interpretationLength,
+                                    continuation: viewModel.continuationLength,
+                                    prediction: viewModel.predictionLength
+                                )
+                            }
+                            
+                            Text("\(viewModel.continuationLength)字")
+                                .foregroundColor(.gray)
+                                .frame(width: 60, alignment: .trailing)
+                        }
+                        
+                        Text("设置AI生成续写内容的字数")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 4)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("预言字数")
+                            .font(.headline)
+                        
+                        HStack {
+                            Slider(value: Binding<Double>(
+                                get: { Double(viewModel.predictionLength) },
+                                set: { viewModel.predictionLength = Int($0) }
+                            ), in: 200...800, step: 50)
+                            .onChange(of: viewModel.predictionLength) { newValue in
+                                viewModel.updateAIOutputLengths(
+                                    interpretation: viewModel.interpretationLength,
+                                    continuation: viewModel.continuationLength,
+                                    prediction: viewModel.predictionLength
+                                )
+                            }
+                            
+                            Text("\(viewModel.predictionLength)字")
+                                .foregroundColor(.gray)
+                                .frame(width: 60, alignment: .trailing)
+                        }
+                        
+                        Text("设置AI生成预言内容的字数")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 4)
+                    
+                    Button(action: {
+                        // 重置为默认字数
+                        viewModel.updateAIOutputLengths(
+                            interpretation: 400,
+                            continuation: 400,
+                            prediction: 400
+                        )
+                    }) {
+                        Text("恢复默认字数")
+                            .foregroundColor(.blue)
+                    }
                 }
                 
                 Section(header: Text("服务器设置")) {

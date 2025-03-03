@@ -3,6 +3,7 @@ import SwiftUI
 struct TaskListView: View {
     @StateObject private var viewModel = TaskViewModel()
     @State private var showingAddSheet = false
+    @State private var showingCalendarSheet = false
     @State private var searchText = ""
     @EnvironmentObject var authViewModel: AuthViewModel
     
@@ -19,7 +20,7 @@ struct TaskListView: View {
         endPoint: .bottomTrailing
     )
     
-    var filteredTasks: [Task] {
+    var filteredTasks: [TapirTask] {
         if searchText.isEmpty {
             return viewModel.tasks
         } else {
@@ -86,6 +87,15 @@ struct TaskListView: View {
             }
             .navigationTitle("任务")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingCalendarSheet = true
+                    }) {
+                        Image(systemName: "calendar")
+                            .foregroundColor(themeColorDark)
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingAddSheet = true
@@ -99,6 +109,9 @@ struct TaskListView: View {
                 NavigationView {
                     TaskFormView(mode: .add, viewModel: viewModel)
                 }
+            }
+            .sheet(isPresented: $showingCalendarSheet) {
+                TaskCalendarView(viewModel: viewModel)
             }
             .searchable(text: $searchText, prompt: "搜索任务")
             .accentColor(themeColorDark) // 设置搜索栏和其他交互元素的强调色
@@ -121,7 +134,7 @@ struct TaskListView: View {
 }
 
 struct TaskRow: View {
-    let task: Task
+    let task: TapirTask
     let themeColor: Color
     
     var body: some View {

@@ -157,7 +157,7 @@ class SpaceService {
     }
     
     // 获取空间的任务
-    func fetchSpaceTasks(spaceId: String, completion: @escaping (Result<[Task], Error>) -> Void) {
+    func fetchSpaceTasks(spaceId: String, completion: @escaping (Result<[TapirTask], Error>) -> Void) {
         guard let token = AuthService.shared.getToken() else {
             completion(.failure(NetworkError.unauthorized))
             return
@@ -228,7 +228,7 @@ class SpaceService {
                 
                 // 尝试解析为任务数组
                 do {
-                    let tasks = try decoder.decode([Task].self, from: data)
+                    let tasks = try decoder.decode([TapirTask].self, from: data)
                     print("成功解析 \(tasks.count) 个任务")
                     
                     // 检查任务数据是否完整
@@ -247,7 +247,7 @@ class SpaceService {
                     
                     // 尝试解析为单个任务
                     do {
-                        let task = try decoder.decode(Task.self, from: data)
+                        let task = try decoder.decode(TapirTask.self, from: data)
                         print("成功解析单个任务: \(task.id)")
                         completion(.success([task]))
                     } catch {
@@ -279,7 +279,7 @@ class SpaceService {
     }
     
     // 在空间中创建任务
-    func createSpaceTask(spaceId: String, task: TaskRequest, completion: @escaping (Result<Task, APIError>) -> Void) {
+    func createSpaceTask(spaceId: String, task: TaskRequest, completion: @escaping (Result<TapirTask, APIError>) -> Void) {
         // 创建任务的副本，并确保设置正确的空间ID
         var spaceTask = task
         spaceTask.spaceId = spaceId
@@ -352,7 +352,7 @@ class SpaceService {
             
             do {
                 let decoder = JSONDecoder()
-                let task = try decoder.decode(Task.self, from: data)
+                let task = try decoder.decode(TapirTask.self, from: data)
                 print("创建空间任务成功: \(task.title)")
                 completion(.success(task))
             } catch {
