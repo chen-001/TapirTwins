@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DreamDetailView: View {
     let dream: Dream
@@ -21,6 +22,13 @@ struct DreamDetailView: View {
     
     // 用于更新的当前梦境
     @State private var currentDream: Dream
+    
+    // 新增：图片分享相关状态
+    @State private var showingImageShareSheet = false
+    @State private var shareImage: UIImage?
+    @State private var showingShareOptions = false
+    @State private var selectedContentType: DreamShareContentType = .dream
+    @State private var selectedContentId: String = ""
     
     // 直接访问API服务
     private let apiService = APIService.shared
@@ -98,6 +106,33 @@ struct DreamDetailView: View {
                         .foregroundColor(.white.opacity(0.9))
                         .lineSpacing(8)
                         .padding(.bottom, 10)
+                    
+                    // 新增：分享按钮
+                    Button(action: {
+                        selectedContentType = .dream
+                        selectedContentId = ""
+                        showingShareOptions = true
+                    }) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 18))
+                            Text("生成分享图片")
+                                .font(.system(size: 14, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.blue.opacity(0.6), Color.indigo.opacity(0.6)]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(15)
+                        .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
+                    }
+                    .padding(.vertical, 10)
                     
                     // AI功能按钮
                     HStack(spacing: 10) {
@@ -191,6 +226,27 @@ struct DreamDetailView: View {
                             VStack(spacing: 15) {
                                 ForEach(interpretations) { interpretation in
                                     DreamInterpretationView(interpretation: interpretation)
+                                        .overlay(
+                                            // 添加分享按钮
+                                            VStack {
+                                                HStack {
+                                                    Spacer()
+                                                    Button(action: {
+                                                        selectedContentType = .interpretation
+                                                        selectedContentId = interpretation.id
+                                                        showingShareOptions = true
+                                                    }) {
+                                                        Image(systemName: "square.and.arrow.up")
+                                                            .font(.system(size: 16))
+                                                            .foregroundColor(.white.opacity(0.7))
+                                                            .padding(8)
+                                                            .background(Circle().fill(Color.purple.opacity(0.3)))
+                                                    }
+                                                    .padding(8)
+                                                }
+                                                Spacer()
+                                            }
+                                        )
                                 }
                             }
                             .padding(.top, 10)
@@ -214,6 +270,27 @@ struct DreamDetailView: View {
                             VStack(spacing: 15) {
                                 ForEach(continuations) { continuation in
                                     DreamContinuationView(continuation: continuation)
+                                        .overlay(
+                                            // 添加分享按钮
+                                            VStack {
+                                                HStack {
+                                                    Spacer()
+                                                    Button(action: {
+                                                        selectedContentType = .continuation
+                                                        selectedContentId = continuation.id
+                                                        showingShareOptions = true
+                                                    }) {
+                                                        Image(systemName: "square.and.arrow.up")
+                                                            .font(.system(size: 16))
+                                                            .foregroundColor(.white.opacity(0.7))
+                                                            .padding(8)
+                                                            .background(Circle().fill(Color.cyan.opacity(0.3)))
+                                                    }
+                                                    .padding(8)
+                                                }
+                                                Spacer()
+                                            }
+                                        )
                                 }
                             }
                             .padding(.top, 10)
@@ -237,6 +314,27 @@ struct DreamDetailView: View {
                             VStack(spacing: 15) {
                                 ForEach(predictions) { prediction in
                                     DreamPredictionView(prediction: prediction)
+                                        .overlay(
+                                            // 添加分享按钮
+                                            VStack {
+                                                HStack {
+                                                    Spacer()
+                                                    Button(action: {
+                                                        selectedContentType = .prediction
+                                                        selectedContentId = prediction.id
+                                                        showingShareOptions = true
+                                                    }) {
+                                                        Image(systemName: "square.and.arrow.up")
+                                                            .font(.system(size: 16))
+                                                            .foregroundColor(.white.opacity(0.7))
+                                                            .padding(8)
+                                                            .background(Circle().fill(Color.orange.opacity(0.3)))
+                                                    }
+                                                    .padding(8)
+                                                }
+                                                Spacer()
+                                            }
+                                        )
                                 }
                             }
                             .padding(.top, 10)
@@ -394,6 +492,16 @@ struct DreamDetailView: View {
             // 加载AI内容
             loadDreamAIContent()
         }
+        
+        // 添加分享图片相关的Sheet
+        .sheet(isPresented: $showingImageShareSheet) {
+            if let image = shareImage {
+                ShareImageView(image: image)
+            }
+        }
+        .actionSheet(isPresented: $showingShareOptions) {
+            createShareOptionsActionSheet()
+        }
     }
     
     private func formatDate(_ dateString: String) -> String {
@@ -543,6 +651,174 @@ struct DreamDetailView: View {
                 print("梦境删除失败: \(self.viewModel.errorMessage ?? "未知错误")")
             }
         }
+    }
+    
+    // 创建分享选项的ActionSheet
+    private func createShareOptionsActionSheet() -> ActionSheet {
+        var buttons: [ActionSheet.Button] = []
+        
+        // 保存到相册
+        buttons.append(.default(Text("保存到相册")) {
+            createAndSaveImage()
+        })
+        
+        // 分享
+        buttons.append(.default(Text("分享")) {
+            createAndShareImage()
+        })
+        
+        // 取消按钮
+        buttons.append(.cancel())
+        
+        return ActionSheet(
+            title: Text("分享选项"),
+            message: Text("选择要执行的操作"),
+            buttons: buttons
+        )
+    }
+    
+    // 创建并保存图片
+    private func createAndSaveImage() {
+        let image = createShareImage()
+        shareImage = image
+        
+        if let image = image {
+            ViewToImageRenderer.saveToPhotoAlbum(image: image) { success, error in
+                DispatchQueue.main.async {
+                    if success {
+                        // 显示保存成功的提示
+                        let banner = NotificationBanner(title: "保存成功", subtitle: "图片已保存到相册", style: .success)
+                        banner.show()
+                    } else if let error = error {
+                        print("保存图片失败: \(error.localizedDescription)")
+                        // 显示保存失败的提示
+                        let banner = NotificationBanner(title: "保存失败", subtitle: error.localizedDescription, style: .danger)
+                        banner.show()
+                    }
+                }
+            }
+        }
+    }
+    
+    // 创建并分享图片
+    private func createAndShareImage() {
+        let image = createShareImage()
+        shareImage = image
+        
+        if let image = image {
+            showingImageShareSheet = true
+        }
+    }
+    
+    // 创建分享图片
+    private func createShareImage() -> UIImage? {
+        let imageSize = CGSize(width: 1080, height: 1920) // 9:16比例，适合社交媒体分享
+        
+        print("创建分享图片，类型: \(selectedContentType), 内容ID: \(selectedContentId)")
+        
+        // 确定要分享的内容
+        switch selectedContentType {
+        case .dream:
+            // 分享原始梦境
+            let shareView = DreamShareCardView(
+                dreamTitle: currentDream.title,
+                dreamDate: currentDream.date,
+                content: currentDream.content,
+                contentType: .dream,
+                style: nil
+            )
+            return ViewToImageRenderer.renderWithBackground(view: shareView, size: imageSize)
+            
+        case .interpretation:
+            // 分享解梦内容
+            if let interpretations = currentDream.dreamInterpretations,
+               let interpretation = interpretations.first(where: { $0.id == selectedContentId }) {
+                print("找到解梦内容: \(interpretation.style ?? "无风格")")
+                let shareView = DreamShareCardView(
+                    dreamTitle: currentDream.title,
+                    dreamDate: currentDream.date,
+                    content: interpretation.content,
+                    contentType: .interpretation,
+                    style: interpretation.style
+                )
+                return ViewToImageRenderer.renderWithBackground(view: shareView, size: imageSize)
+            } else {
+                print("未找到对应ID的解梦内容，可用解梦数量: \(currentDream.dreamInterpretations?.count ?? 0)")
+                // 尝试使用任何可用的解梦内容
+                if let interpretation = currentDream.dreamInterpretations?.first {
+                    print("使用第一个可用的解梦内容")
+                    let shareView = DreamShareCardView(
+                        dreamTitle: currentDream.title,
+                        dreamDate: currentDream.date,
+                        content: interpretation.content,
+                        contentType: .interpretation,
+                        style: interpretation.style
+                    )
+                    return ViewToImageRenderer.renderWithBackground(view: shareView, size: imageSize)
+                }
+            }
+            
+        case .continuation:
+            // 分享续写内容
+            if let continuations = currentDream.dreamContinuations,
+               let continuation = continuations.first(where: { $0.id == selectedContentId }) {
+                print("找到续写内容: \(continuation.style ?? "无风格")")
+                let shareView = DreamShareCardView(
+                    dreamTitle: currentDream.title,
+                    dreamDate: currentDream.date,
+                    content: continuation.content,
+                    contentType: .continuation,
+                    style: continuation.style
+                )
+                return ViewToImageRenderer.renderWithBackground(view: shareView, size: imageSize)
+            } else {
+                print("未找到对应ID的续写内容，可用续写数量: \(currentDream.dreamContinuations?.count ?? 0)")
+                // 尝试使用任何可用的续写内容
+                if let continuation = currentDream.dreamContinuations?.first {
+                    print("使用第一个可用的续写内容")
+                    let shareView = DreamShareCardView(
+                        dreamTitle: currentDream.title,
+                        dreamDate: currentDream.date,
+                        content: continuation.content,
+                        contentType: .continuation,
+                        style: continuation.style
+                    )
+                    return ViewToImageRenderer.renderWithBackground(view: shareView, size: imageSize)
+                }
+            }
+            
+        case .prediction:
+            // 分享预言内容
+            if let predictions = currentDream.dreamPredictions,
+               let prediction = predictions.first(where: { $0.id == selectedContentId }) {
+                print("找到预言内容: \(prediction.style ?? "无风格")")
+                let shareView = DreamShareCardView(
+                    dreamTitle: currentDream.title,
+                    dreamDate: currentDream.date,
+                    content: prediction.content,
+                    contentType: .prediction,
+                    style: prediction.style
+                )
+                return ViewToImageRenderer.renderWithBackground(view: shareView, size: imageSize)
+            } else {
+                print("未找到对应ID的预言内容，可用预言数量: \(currentDream.dreamPredictions?.count ?? 0)")
+                // 尝试使用任何可用的预言内容
+                if let prediction = currentDream.dreamPredictions?.first {
+                    print("使用第一个可用的预言内容")
+                    let shareView = DreamShareCardView(
+                        dreamTitle: currentDream.title,
+                        dreamDate: currentDream.date,
+                        content: prediction.content,
+                        contentType: .prediction,
+                        style: prediction.style
+                    )
+                    return ViewToImageRenderer.renderWithBackground(view: shareView, size: imageSize)
+                }
+            }
+        }
+        
+        print("未能创建分享图片")
+        return nil
     }
 }
 
@@ -951,6 +1227,49 @@ struct PredictionStyleSheet: View {
                 }
             }
         })
+    }
+}
+
+// 用于分享图片的视图
+struct ShareImageView: View {
+    let image: UIImage
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Button("关闭") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+                .padding()
+                
+                Spacer()
+                
+                Button("分享") {
+                    let activityVC = UIActivityViewController(
+                        activityItems: [image],
+                        applicationActivities: nil
+                    )
+                    
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let rootViewController = windowScene.windows.first?.rootViewController {
+                        rootViewController.present(activityVC, animated: true)
+                    }
+                }
+                .padding()
+            }
+            
+            Spacer()
+            
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .cornerRadius(10)
+                .padding()
+            
+            Spacer()
+        }
+        .background(Color.black.opacity(0.9).edgesIgnoringSafeArea(.all))
     }
 }
 

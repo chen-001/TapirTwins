@@ -132,7 +132,7 @@ struct ImagePicker: UIViewControllerRepresentable {
 struct SubmitTaskView: View {
     let task: TapirTask
     @ObservedObject var viewModel: SpaceViewModel
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedImages: [UIImage] = []
     @State private var isShowingImagePicker = false
     
@@ -182,7 +182,7 @@ struct SubmitTaskView: View {
                 Button(action: {
                     if let spaceId = task.spaceId {
                         viewModel.submitTask(spaceId: spaceId, taskId: task.id, images: selectedImages)
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }
                 }) {
                     Text("提交")
@@ -197,7 +197,7 @@ struct SubmitTaskView: View {
                 .padding()
             }
             .navigationBarItems(trailing: Button("取消") {
-                presentationMode.wrappedValue.dismiss()
+                dismiss()
             })
             .sheet(isPresented: $isShowingImagePicker) {
                 ImagePicker(selectedImages: $selectedImages, maxImages: task.requiredImages)
@@ -212,7 +212,7 @@ struct RejectTaskView: View {
     @ObservedObject var viewModel: SpaceViewModel
     @Binding var rejectReason: String
     @Binding var selectedRecord: TaskRecord?
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         NavigationView {
@@ -247,7 +247,7 @@ struct RejectTaskView: View {
                 Button(action: {
                     if let record = selectedRecord, let spaceId = task.spaceId {
                         viewModel.rejectTaskRecord(spaceId: spaceId, recordId: record.id, reason: rejectReason)
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }
                 }) {
                     Text("提交")
@@ -262,7 +262,7 @@ struct RejectTaskView: View {
                 .padding()
             }
             .navigationBarItems(trailing: Button("取消") {
-                presentationMode.wrappedValue.dismiss()
+                dismiss()
             })
         }
     }
@@ -274,7 +274,7 @@ struct ApproveTaskView: View {
     @ObservedObject var viewModel: SpaceViewModel
     @State private var approveComment: String = ""
     @Binding var selectedRecord: TaskRecord?
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         NavigationView {
@@ -309,7 +309,7 @@ struct ApproveTaskView: View {
                 Button(action: {
                     if let record = selectedRecord, let spaceId = task.spaceId {
                         viewModel.approveTaskRecord(spaceId: spaceId, recordId: record.id, comment: approveComment)
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }
                 }) {
                     Text("提交")
@@ -322,6 +322,9 @@ struct ApproveTaskView: View {
                 }
             }
             .padding()
+            .navigationBarItems(trailing: Button("取消") {
+                dismiss()
+            })
         }
     }
 }
@@ -765,16 +768,43 @@ enum TaskHelpers {
     struct FullScreenImageViewWrapper: View {
         let imageURL: String
         @Binding var isPresented: Bool
+        @Environment(\.dismiss) private var dismiss
         
         var body: some View {
             let urlString = APIService.imageURL(for: imageURL)
             
             VStack {
                 if let url = URL(string: urlString) {
-                    FullScreenImageView(imageURL: url, isPresented: $isPresented)
-                        .onAppear {
-                            print("FullScreenImageViewWrapper - 显示图片URL: \(url.absoluteString)")
+                    ZStack {
+                        FullScreenImageView(imageURL: url, isPresented: $isPresented)
+                            .onAppear {
+                                print("FullScreenImageViewWrapper - 显示图片URL: \(url.absoluteString)")
+                            }
+                            .onDisappear {
+                                print("FullScreenImageView 已消失")
+                            }
+                        
+                        // 添加一个测试按钮，直接操作绑定
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Button(action: {
+                                    print("紧急关闭按钮被点击")
+                                    isPresented = false
+                                    dismiss()
+                                }) {
+                                    Text("紧急关闭")
+                                        .foregroundColor(.white)
+                                        .padding(10)
+                                        .background(Color.red)
+                                        .cornerRadius(8)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .padding()
+                            }
                         }
+                    }
                 } else {
                     VStack(spacing: 20) {
                         Text("无法创建图片URL")
@@ -813,6 +843,7 @@ enum TaskHelpers {
                         
                         Button("关闭") {
                             isPresented = false
+                            dismiss()
                         }
                         .padding()
                     }
@@ -854,6 +885,7 @@ enum TaskHelpers {
 struct FullScreenImageView: View {
     let imageURL: URL
     @Binding var isPresented: Bool
+    @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
@@ -867,117 +899,160 @@ struct FullScreenImageView: View {
         NavigationView {
             GeometryReader { geometry in
                 ZStack {
-                    Color.black.edgesIgnoringSafeArea(.all)
-                    
-                    // 调试信息
-                    if showDebugInfo {
-                        VStack {
-                            Text("图片URL: \(imageURL.absoluteString)")
-                                .font(.caption)
-                                .foregroundColor(.white)
-                            
-                            if let errorMessage = errorMessage {
-                                Text("错误: \(errorMessage)")
-                                    .font(.caption)
-                                    .foregroundColor(.red)
-                                    .multilineTextAlignment(.center)
+                    // 背景层 - 添加点击可关闭
+                    Rectangle()
+                        .fill(Color.black)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            print("背景被点击")
+                            DispatchQueue.main.async {
+                                isPresented = false
+                                dismiss()
                             }
                         }
-                        .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(8)
-                        .padding()
-                        .zIndex(2)
-                    }
+                        .edgesIgnoringSafeArea(.all)
                     
-                    if isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(2.0)
-                            .zIndex(1)
-                    }
-                    
-                    if let image = image {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .scaleEffect(scale)
-                            .offset(offset)
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        let delta = value / lastScale
-                                        lastScale = value
-                                        scale = min(max(scale * delta, 1), 5)
-                                    }
-                                    .onEnded { _ in
-                                        lastScale = 1.0
-                                    }
-                            )
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        offset = CGSize(
-                                            width: lastOffset.width + value.translation.width,
-                                            height: lastOffset.height + value.translation.height
-                                        )
-                                    }
-                                    .onEnded { _ in
-                                        lastOffset = offset
-                                    }
-                            )
-                            .onTapGesture(count: 2) {
-                                withAnimation {
-                                    if scale > 1 {
-                                        scale = 1
-                                        offset = .zero
-                                        lastOffset = .zero
-                                    } else {
-                                        scale = 2
-                                    }
+                    // 内容层与背景隔离，防止点击冲突
+                    VStack {
+                        // 调试信息
+                        if showDebugInfo {
+                            VStack {
+                                Text("图片URL: \(imageURL.absoluteString)")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                
+                                if let errorMessage = errorMessage {
+                                    Text("错误: \(errorMessage)")
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                        .multilineTextAlignment(.center)
                                 }
                             }
-                    } else if !isLoading {
-                        VStack(spacing: 15) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.largeTitle)
-                            Text("图片加载失败")
-                            if let errorMessage = errorMessage {
-                                Text(errorMessage)
-                                    .font(.caption)
-                                    .multilineTextAlignment(.center)
-                            }
-                            
-                            Button("重试") {
-                                loadImage()
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.black.opacity(0.7))
                             .cornerRadius(8)
-                            .padding(.top, 10)
+                            .padding()
+                            .zIndex(2)
                         }
-                        .foregroundColor(.white)
-                        .padding()
+                        
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(2.0)
+                                .zIndex(1)
+                        }
+                        
+                        if let image = image {
+                            // 图片层 - 防止点击事件传递到背景
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .scaleEffect(scale)
+                                .offset(offset)
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    MagnificationGesture()
+                                        .onChanged { value in
+                                            let delta = value / lastScale
+                                            lastScale = value
+                                            scale = min(max(scale * delta, 1), 5)
+                                        }
+                                        .onEnded { _ in
+                                            lastScale = 1.0
+                                        }
+                                )
+                                .gesture(
+                                    DragGesture()
+                                        .onChanged { value in
+                                            offset = CGSize(
+                                                width: lastOffset.width + value.translation.width,
+                                                height: lastOffset.height + value.translation.height
+                                            )
+                                        }
+                                        .onEnded { _ in
+                                            lastOffset = offset
+                                        }
+                                )
+                                .onTapGesture(count: 2) {
+                                    withAnimation {
+                                        if scale > 1 {
+                                            scale = 1
+                                            offset = .zero
+                                            lastOffset = .zero
+                                        } else {
+                                            scale = 2
+                                        }
+                                    }
+                                }
+                                .allowsHitTesting(true)
+                                .onTapGesture(count: 1) { 
+                                    // 吸收单击事件，防止传递到背景
+                                    print("图片被点击")
+                                }
+                        } else if !isLoading {
+                            VStack(spacing: 15) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.largeTitle)
+                                Text("图片加载失败")
+                                if let errorMessage = errorMessage {
+                                    Text(errorMessage)
+                                        .font(.caption)
+                                        .multilineTextAlignment(.center)
+                                }
+                                
+                                Button("重试") {
+                                    loadImage()
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                                .padding(.top, 10)
+                            }
+                            .foregroundColor(.white)
+                            .padding()
+                            .allowsHitTesting(true) // 允许点击这个区域而不是传递给背景
+                        }
                     }
+                    .allowsHitTesting(true) // 允许内容视图接收点击事件
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button(action: {
-                    showDebugInfo.toggle()
-                }) {
-                    Image(systemName: showDebugInfo ? "info.circle.fill" : "info.circle")
-                        .foregroundColor(.white)
-                },
-                trailing: Button(action: {
-                    isPresented = false
-                }) {
-                    Text("关闭")
-                        .foregroundColor(.white)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showDebugInfo.toggle()
+                    }) {
+                        Image(systemName: showDebugInfo ? "info.circle.fill" : "info.circle")
+                            .foregroundColor(.white)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-            )
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        print("关闭按钮被点击")
+                        // 强制将修改应用到主线程
+                        DispatchQueue.main.async {
+                            withAnimation {
+                                isPresented = false
+                                dismiss()
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                            Text("关闭")
+                        }
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(Color.black.opacity(0.5))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .keyboardShortcut(.escape, modifiers: [])
+                }
+            }
             .background(Color.black)
             .onAppear {
                 loadImage()

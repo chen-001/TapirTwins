@@ -14,6 +14,8 @@ struct DreamListView: View {
     @State private var showingCharacterStory = false
     @State private var showingCharacterInput = false
     @State private var characterName: String = ""
+    @State private var searchText: String = ""
+    @State private var isSearching: Bool = false
     
     enum DreamFilter {
         case all, lastWeek, lastMonth
@@ -26,6 +28,9 @@ struct DreamListView: View {
                     .ignoresSafeArea()
                 
                 VStack {
+                    // 搜索栏
+                    searchBar
+                    
                     if viewModel.isLoading {
                         ProgressView()
                             .scaleEffect(1.5)
@@ -251,6 +256,37 @@ struct DreamListView: View {
         }
     }
     
+    // 搜索栏视图
+    private var searchBar: some View {
+        HStack {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                
+                TextField("搜索梦境（标题、时间、内容）", text: $searchText)
+                    .foregroundColor(.primary)
+                    .onChange(of: searchText) { newValue in
+                        viewModel.searchText = newValue
+                    }
+                
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                        viewModel.searchText = ""
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+            .padding(8)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+    
     private var alertItem: Binding<AlertItem?> {
         Binding<AlertItem?>(
             get: {
@@ -265,34 +301,32 @@ struct DreamListView: View {
     }
     
     private var filteredDreams: [Dream] {
+        let dreams = viewModel.filteredDreams
+        
         switch selectedFilter {
         case .all:
-            return viewModel.dreams
+            return dreams
         case .lastWeek:
-            return viewModel.dreams.filter { isDateWithinLastWeek($0.date) }
+            let calendar = Calendar.current
+            let oneWeekAgo = calendar.date(byAdding: .day, value: -7, to: Date())!
+            
+            return dreams.filter { dream in
+                if let dreamDate = ISO8601DateFormatter().date(from: dream.date) {
+                    return dreamDate >= oneWeekAgo
+                }
+                return false
+            }
         case .lastMonth:
-            return viewModel.dreams.filter { isDateWithinLastMonth($0.date) }
+            let calendar = Calendar.current
+            let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date())!
+            
+            return dreams.filter { dream in
+                if let dreamDate = ISO8601DateFormatter().date(from: dream.date) {
+                    return dreamDate >= oneMonthAgo
+                }
+                return false
+            }
         }
-    }
-    
-    private func isDateWithinLastWeek(_ dateString: String) -> Bool {
-        guard let date = formatDateToDate(dateString) else { return false }
-        let calendar = Calendar.current
-        let oneWeekAgo = calendar.date(byAdding: .day, value: -7, to: Date())!
-        return date >= oneWeekAgo
-    }
-    
-    private func isDateWithinLastMonth(_ dateString: String) -> Bool {
-        guard let date = formatDateToDate(dateString) else { return false }
-        let calendar = Calendar.current
-        let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date())!
-        return date >= oneMonthAgo
-    }
-    
-    private func formatDateToDate(_ dateString: String) -> Date? {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        return dateFormatter.date(from: dateString)
     }
     
     private func updateReportTimeRange(_ range: ReportTimeRange) {

@@ -17,6 +17,8 @@ struct UserSettings: Codable {
     var dreamAnalysisTimeRange: AnalysisTimeRange = .month
     // 梦境报告的时间范围设置
     var dreamReportTimeRange: ReportTimeRange = .month
+    // 任务统计起始日期
+    var statisticsStartDate: String?
     
     static let defaultsKey = "userSettings"
     
@@ -88,6 +90,33 @@ struct UserSettingsRequest: Codable {
     var predictionLength: Int?
     var dreamAnalysisTimeRange: AnalysisTimeRange?
     var dreamReportTimeRange: ReportTimeRange?
+    var statisticsStartDate: String?
+    
+    // 添加一个简单的初始化方法，只接收统计起始日期
+    init(statisticsStartDate: String) {
+        self.statisticsStartDate = statisticsStartDate
+    }
+    
+    // 添加完整的初始化方法，兼容现有代码
+    init(defaultShareSpaceId: String? = nil,
+         dreamReminderEnabled: Bool? = nil,
+         dreamReminderTime: Date? = nil,
+         interpretationLength: Int? = nil,
+         continuationLength: Int? = nil,
+         predictionLength: Int? = nil,
+         dreamAnalysisTimeRange: AnalysisTimeRange? = nil,
+         dreamReportTimeRange: ReportTimeRange? = nil,
+         statisticsStartDate: String? = nil) {
+        self.defaultShareSpaceId = defaultShareSpaceId
+        self.dreamReminderEnabled = dreamReminderEnabled
+        self.dreamReminderTime = dreamReminderTime
+        self.interpretationLength = interpretationLength
+        self.continuationLength = continuationLength
+        self.predictionLength = predictionLength
+        self.dreamAnalysisTimeRange = dreamAnalysisTimeRange
+        self.dreamReportTimeRange = dreamReportTimeRange
+        self.statisticsStartDate = statisticsStartDate
+    }
 }
 
 struct UserSettingsResponse: Codable {
@@ -99,6 +128,7 @@ struct UserSettingsResponse: Codable {
     var predictionLength: Int?
     var dreamAnalysisTimeRange: AnalysisTimeRange?
     var dreamReportTimeRange: ReportTimeRange?
+    var statisticsStartDate: String?
 }
 
 struct AuthResponse: Codable {

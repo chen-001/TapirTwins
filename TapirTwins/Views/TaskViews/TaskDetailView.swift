@@ -16,6 +16,13 @@ fileprivate let themeGradient = LinearGradient(
     endPoint: .bottomTrailing
 )
 
+// 添加可以支持选中图片URL的扩展
+extension String: Identifiable {
+    public var id: String {
+        self
+    }
+}
+
 struct TaskDetailView: View {
     let task: TapirTask
     @ObservedObject var viewModel: TaskViewModel
@@ -394,49 +401,82 @@ struct RecordItemView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(formatDate(record.createdAt))
-                .font(.subheadline)
-                .foregroundColor(themeColorDark)
-            
-            if let firstImage = record.images.first, !firstImage.isEmpty {
-                // 将图片URL存储为常量，确保它在整个视图生命周期中保持不变
-                let imageURL = firstImage
+            HStack {
+                Text(formatDate(record.createdAt))
+                    .font(.subheadline)
+                    .foregroundColor(themeColorDark)
                 
-                Button(action: {
-                    print("点击查看图片: \(imageURL)")
-                    selectedImageURL = imageURL
-                    print("selectedImageURL: \(selectedImageURL!)")
-                    showingFullScreenImage = true
-                }) {
-                    AsyncImage(url: URL(string: APIService.imageURL(for: imageURL))) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView()
-                                .frame(width: 100, height: 100)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(height: 100)
-                                .cornerRadius(8)
-                        case .failure:
-                            VStack {
-                                Image(systemName: "exclamationmark.triangle")
-                                Text("加载失败")
-                                    .font(.caption)
+                Spacer()
+                
+                // 添加状态显示
+                HStack(spacing: 4) {
+                    Image(systemName: statusIcon(for: record.status))
+                        .foregroundColor(statusColor(for: record.status))
+                        .font(.caption)
+                    
+                    Text(statusText(for: record.status))
+                        .font(.caption)
+                        .foregroundColor(statusColor(for: record.status))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(statusColor(for: record.status).opacity(0.1))
+                .cornerRadius(12)
+            }
+            
+            if !record.images.isEmpty {
+                // 以网格形式显示图片
+                LazyVGrid(columns: [
+                    GridItem(.adaptive(minimum: 80, maximum: 100), spacing: 8)
+                ], spacing: 8) {
+                    ForEach(record.images.prefix(5), id: \.self) { imageURL in
+                        Button(action: {
+                            print("点击查看图片: \(imageURL)")
+                            selectedImageURL = imageURL
+                            showingFullScreenImage = true
+                        }) {
+                            AsyncImage(url: URL(string: APIService.imageURL(for: imageURL))) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(width: 80, height: 80)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 80, height: 80)
+                                        .cornerRadius(8)
+                                case .failure:
+                                    VStack {
+                                        Image(systemName: "exclamationmark.triangle")
+                                        Text("加载失败")
+                                            .font(.caption2)
+                                    }
+                                    .frame(width: 80, height: 80)
+                                @unknown default:
+                                    EmptyView()
+                                }
                             }
-                            .frame(width: 100, height: 100)
-                        @unknown default:
-                            EmptyView()
                         }
                     }
                 }
-                // 使用fullScreenCover而不是sheet，并直接传递imageURL作为参数
-                .fullScreenCover(isPresented: $showingFullScreenImage) {
-                    if let url = URL(string: APIService.imageURL(for: imageURL)) {
-                        FullScreenImageView(imageURL: url, isPresented: $showingFullScreenImage)
-                    }
+                .fullScreenCover(item: $selectedImageURL) { imageURL in
+                    TaskHelpers.FullScreenImageViewWrapper(imageURL: imageURL, isPresented: $showingFullScreenImage)
                 }
+            }
+            
+            // 显示拒绝原因（如果存在）
+            if let rejectionReason = record.rejectionReason, !rejectionReason.isEmpty, record.status == .rejected {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("拒绝原因:")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    
+                    Text(rejectionReason)
+                        .font(.caption)
+                        .foregroundColor(.black)
+                }
+                .padding(.top, 4)
             }
         }
         .padding()
@@ -452,6 +492,45 @@ struct RecordItemView: View {
         }
         
         return dateString
+    }
+    
+    private func statusIcon(for status: TaskStatus) -> String {
+        switch status {
+        case .submitted:
+            return "hourglass"
+        case .approved:
+            return "checkmark.seal.fill"
+        case .rejected:
+            return "xmark.seal.fill"
+        case .pending:
+            return "circle"
+        }
+    }
+    
+    private func statusText(for status: TaskStatus) -> String {
+        switch status {
+        case .submitted:
+            return "待审核"
+        case .approved:
+            return "已通过"
+        case .rejected:
+            return "已拒绝"
+        case .pending:
+            return "未打卡"
+        }
+    }
+    
+    private func statusColor(for status: TaskStatus) -> Color {
+        switch status {
+        case .submitted:
+            return .orange
+        case .approved:
+            return .green
+        case .rejected:
+            return .red
+        case .pending:
+            return .gray
+        }
     }
 }
 

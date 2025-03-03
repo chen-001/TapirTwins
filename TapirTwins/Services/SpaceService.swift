@@ -769,4 +769,48 @@ class SpaceService {
         
         apiService.request(endpoint: "spaces/\(spaceId)/tasks/\(taskId)/history", method: "GET", completion: completion)
     }
+    
+    // 获取空间的统计起始日期
+    func fetchSpaceStatisticsStartDate(spaceId: String, completion: @escaping (Result<String, APIError>) -> Void) {
+        apiService.request(endpoint: "spaces/\(spaceId)/statistics/start-date", method: "GET") { (result: Result<SpaceStatisticsResponse, APIError>) in
+            switch result {
+            case .success(let response):
+                completion(.success(response.statisticsStartDate))
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    // 设置空间的统计起始日期
+    func updateSpaceStatisticsStartDate(spaceId: String, startDate: String, completion: @escaping (Result<String, APIError>) -> Void) {
+        let request = SpaceStatisticsRequest(statisticsStartDate: startDate)
+        
+        guard let body = try? JSONEncoder().encode(request) else {
+            print("设置空间统计起始日期请求编码失败")
+            completion(.failure(.unknown))
+            return
+        }
+        
+        apiService.request(endpoint: "spaces/\(spaceId)/statistics/start-date", method: "PUT", body: body) { (result: Result<SpaceStatisticsResponse, APIError>) in
+            switch result {
+            case .success(let response):
+                completion(.success(response.statisticsStartDate))
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+}
+
+// 空间统计设置请求
+struct SpaceStatisticsRequest: Codable {
+    let statisticsStartDate: String
+}
+
+// 空间统计设置响应
+struct SpaceStatisticsResponse: Codable {
+    let success: Bool
+    let statisticsStartDate: String
+    let message: String?
 }

@@ -4,6 +4,9 @@ struct TaskCalendarView: View {
     @ObservedObject var viewModel: TaskViewModel
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedMonth: Date = Date()
+    @State private var showingDatePicker = false
+    @State private var selectedStartDate: Date = Date()
+    @State private var showingTotalFailedAlert = false
     
     // 定义主题颜色，与TaskListView保持一致
     private let themeColor = Color(red: 0.96, green: 0.76, blue: 0.86) // 柔和的粉色
@@ -22,6 +25,13 @@ struct TaskCalendarView: View {
     private let monthFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy年MM月"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter
+    }()
+    
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日"
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter
     }()
@@ -73,6 +83,10 @@ struct TaskCalendarView: View {
                     }
                     .padding(.horizontal)
                     
+                    // 统计起始日和累计统计功能
+                    statisticsButtonsView
+                        .padding(.horizontal)
+                    
                     // 星期标题
                     HStack {
                         ForEach(weekdaySymbols, id: \.self) { symbol in
@@ -103,7 +117,7 @@ struct TaskCalendarView: View {
                         }
                         .padding()
                         
-                        Text("统计数据每日0点30分更新")
+                        Text("实时计算的任务统计数据")
                             .font(.caption)
                             .foregroundColor(.gray)
                             .padding(.bottom)
@@ -126,6 +140,154 @@ struct TaskCalendarView: View {
             }
             .onAppear {
                 loadMonthData()
+                // 加载统计起始日期
+                viewModel.loadStatisticsStartDate()
+                if let startDate = viewModel.statisticsStartDate {
+                    selectedStartDate = startDate
+                }
+            }
+            // 日期选择器弹窗
+            .sheet(isPresented: $showingDatePicker) {
+                datePickerView
+            }
+            // 显示累计失败次数的提示
+            .alert(isPresented: $showingTotalFailedAlert) {
+                Alert(
+                    title: Text("累计打卡失败次数"),
+                    message: Text("从 \(dateFormatter.string(from: viewModel.statisticsStartDate ?? Date())) 至今，累计打卡失败 \(viewModel.totalFailedCount) 次"),
+                    dismissButton: .default(Text("确定"))
+                )
+            }
+        }
+    }
+    
+    // 统计按钮视图
+    private var statisticsButtonsView: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("统计起始日:")
+                    .font(.subheadline)
+                    .foregroundColor(themeColorDark)
+                
+                Spacer()
+                
+                if let startDate = viewModel.statisticsStartDate {
+                    Text(dateFormatter.string(from: startDate))
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                } else {
+                    Text("未设置")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                
+                Button(action: {
+                    showingDatePicker = true
+                }) {
+                    Image(systemName: "calendar")
+                        .foregroundColor(themeColorDark)
+                        .padding(.leading, 8)
+                }
+            }
+            
+            // 显示是个人设置还是空间共享设置
+            HStack {
+                let settings = UserSettings.load()
+                if settings.defaultShareSpaceId != nil {
+                    Text("(此设置在空间内共享)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                } else {
+                    Text("(个人设置)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                Spacer()
+            }
+            
+            HStack {
+                Button(action: {
+                    // 计算累计失败次数
+                    viewModel.calculateTotalFailedCount { _ in
+                        showingTotalFailedAlert = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "chart.bar")
+                        Text("统计近期打卡失败次数")
+                    }
+                    .foregroundColor(.white)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .background(themeColorDark)
+                    .cornerRadius(8)
+                }
+                .disabled(viewModel.isLoading)
+                
+                Spacer()
+            }
+        }
+        .padding()
+        .background(Color.white.opacity(0.7))
+        .cornerRadius(15)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+    }
+    
+    // 日期选择器视图
+    private var datePickerView: some View {
+        NavigationView {
+            VStack {
+                // 空间共享提示
+                let settings = UserSettings.load()
+                if settings.defaultShareSpaceId != nil {
+                    HStack {
+                        Image(systemName: "person.3.fill")
+                            .foregroundColor(themeColorDark)
+                        Text("此设置将在空间内共享给所有成员")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal)
+                    .padding(.top)
+                }
+                
+                DatePicker(
+                    "选择统计起始日期",
+                    selection: $selectedStartDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(GraphicalDatePickerStyle())
+                .padding()
+                
+                Button(action: {
+                    // 保存选择的日期
+                    viewModel.saveStatisticsStartDate(date: selectedStartDate) { success in
+                        if success {
+                            // 关闭日期选择器
+                            showingDatePicker = false
+                        }
+                    }
+                }) {
+                    Text("确定")
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(themeColorDark)
+                        .cornerRadius(8)
+                        .padding()
+                }
+            }
+            .navigationTitle("选择统计起始日期")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingDatePicker = false
+                    }) {
+                        Text("取消")
+                            .foregroundColor(themeColorDark)
+                    }
+                }
             }
         }
     }

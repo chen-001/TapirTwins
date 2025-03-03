@@ -19,16 +19,21 @@ struct TapirTwinsApp: App {
     
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environmentObject(notificationHandler)
-                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenDreamRecording"))) { _ in
-                    // 收到通知后，设置标志以打开梦境记录界面
-                    notificationHandler.shouldOpenDreamRecording = true
-                }
-                .onOpenURL { url in
-                    // 处理从灵动岛点击进入的URL
-                    handleDeepLink(url: url)
-                }
+            ZStack {
+                RootView()
+                    .environmentObject(notificationHandler)
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenDreamRecording"))) { _ in
+                        // 收到通知后，设置标志以打开梦境记录界面
+                        notificationHandler.shouldOpenDreamRecording = true
+                    }
+                    .onOpenURL { url in
+                        // 处理从灵动岛点击进入的URL
+                        handleDeepLink(url: url)
+                    }
+                
+                // 添加通知横幅到顶层
+                NotificationBannerView()
+            }
         }
     }
     
