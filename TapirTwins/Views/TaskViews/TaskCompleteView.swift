@@ -76,7 +76,7 @@ struct TaskCompleteView: View {
                                 .background(themeColorDark)
                                 .cornerRadius(10)
                             }
-                            .onChange(of: selectedItems) { _, newItems in
+                            .onChange(of: selectedItems) { newItems in
                                 // 清空selectedImages，因为loadTransferable是异步的，我们将在闭包中添加
                                 selectedImages = []
                                 loadImages(from: newItems)

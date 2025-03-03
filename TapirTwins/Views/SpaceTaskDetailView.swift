@@ -54,7 +54,7 @@ struct SpaceTaskDetailView: View {
                 dismissButton: .default(Text("确定"))
             )
         }
-        .onChange(of: viewModel.errorMessage) { _, newValue in
+        .onChange(of: viewModel.errorMessage) { newValue in
             handleErrorChange(newValue)
         }
         .onReceive(viewModel.$spaces) { _ in

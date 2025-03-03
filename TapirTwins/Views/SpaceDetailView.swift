@@ -58,8 +58,8 @@ struct SpaceDetailView: View {
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .padding()
-                    .onChange(of: selectedTab) { oldValue, newValue in
-                        print("标签变更: \(oldValue) -> \(newValue)")
+                    .onChange(of: selectedTab) { newValue in
+                        print("标签变更: \(selectedTab) -> \(newValue)")
                         if newValue == 0 {
                             viewModel.fetchSpaceDreams(spaceId: spaceId)
                         } else if newValue == 1 {
@@ -142,7 +142,7 @@ struct SpaceDetailView: View {
             viewModel.fetchSpaceDreams(spaceId: spaceId)
             viewModel.fetchSpaceTasks(spaceId: spaceId)
         }
-        .onChange(of: viewModel.showError) { oldValue, newValue in
+        .onChange(of: viewModel.showError) { newValue in
             showError = newValue
         }
     }
