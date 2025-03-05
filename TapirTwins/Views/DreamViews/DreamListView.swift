@@ -3,19 +3,36 @@ import UIKit
 
 struct DreamListView: View {
     @StateObject private var viewModel = DreamViewModel()
-    @State private var showingAddDream = false
     @State private var showingFilterOptions = false
     @State private var selectedFilter: DreamFilter = .all
     @EnvironmentObject var authViewModel: AuthViewModel
-    @State private var showingWordCloud = false
-    @State private var showingDreamReport = false
-    @State private var showingReportOptions = false
-    @State private var showingReportHistory = false
-    @State private var showingCharacterStory = false
-    @State private var showingCharacterInput = false
     @State private var characterName: String = ""
     @State private var searchText: String = ""
     @State private var isSearching: Bool = false
+    
+    // 使用枚举替代多个独立的布尔值
+    enum ActiveSheet: Identifiable {
+        case addDream
+        case wordCloud
+        case dreamReport
+        case reportHistory
+        case characterInput
+        case characterStory
+        
+        var id: Int {
+            switch self {
+            case .addDream: return 0
+            case .wordCloud: return 1
+            case .dreamReport: return 2
+            case .reportHistory: return 3
+            case .characterInput: return 4
+            case .characterStory: return 5
+            }
+        }
+    }
+    
+    @State private var activeSheet: ActiveSheet?
+    @State private var showingReportOptions = false
     
     enum DreamFilter {
         case all, lastWeek, lastMonth
@@ -46,7 +63,7 @@ struct DreamListView: View {
                                 .foregroundColor(.gray)
                             
                             Button(action: {
-                                showingAddDream = true
+                                activeSheet = .addDream
                             }) {
                                 Text("记录梦境")
                                     .font(.headline)
@@ -60,11 +77,17 @@ struct DreamListView: View {
                         }
                         .padding()
                     } else {
+                        // 按钮区域 - 从List中移出来
                         HStack(spacing: 12) {
                             Button(action: {
                                 print("人物志按钮被点击")
-                                showingCharacterInput = true
-                                print("showingCharacterInput设置为true")
+                                // 确保其他状态被重置
+                                showingReportOptions = false
+                                // 设置当前活动sheet
+                                DispatchQueue.main.async {
+                                    activeSheet = .characterInput
+                                    print("activeSheet设置为.characterInput")
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "person.text.rectangle")
@@ -81,8 +104,13 @@ struct DreamListView: View {
                             
                             Button(action: {
                                 print("梦境报告按钮被点击")
-                                showingReportOptions = true
-                                print("showingReportOptions设置为true")
+                                // 确保其他状态被重置
+                                activeSheet = nil
+                                // 设置报告选项状态
+                                DispatchQueue.main.async {
+                                    showingReportOptions = true
+                                    print("showingReportOptions设置为true")
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "chart.bar")
@@ -98,7 +126,14 @@ struct DreamListView: View {
                             }
                             
                             Button(action: {
-                                showingReportHistory = true
+                                print("报告历史按钮被点击")
+                                // 确保其他状态被重置
+                                showingReportOptions = false
+                                // 设置当前活动sheet
+                                DispatchQueue.main.async {
+                                    activeSheet = .reportHistory
+                                    print("activeSheet设置为.reportHistory")
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "clock.arrow.circlepath")
@@ -134,21 +169,24 @@ struct DreamListView: View {
                             }
                         }
                         .padding(.horizontal)
-                        .padding(.top, 8)
+                        .padding(.vertical, 8)
                         
-                        ScrollView {
-                            LazyVStack(spacing: 15) {
-                                ForEach(filteredDreams) { dream in
-                                    NavigationLink(destination: DreamDetailView(dream: dream, onUpdate: {
-                                        viewModel.fetchDreams()
-                                    })) {
-                                        DreamCard(dream: dream)
-                                            .environmentObject(authViewModel)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
+                        List {
+                            // 梦境列表
+                            ForEach(filteredDreams) { dream in
+                                NavigationLink(destination: DreamDetailView(dream: dream, onUpdate: {
+                                    viewModel.fetchDreams()
+                                })) {
+                                    DreamCard(dream: dream)
+                                        .environmentObject(authViewModel)
                                 }
+                                .buttonStyle(PlainButtonStyle())
                             }
-                            .padding()
+                        }
+                        .listStyle(PlainListStyle())
+                        .refreshable {
+                            // 使用forceRefresh参数强制刷新数据
+                            await refreshData()
                         }
                     }
                 }
@@ -160,7 +198,7 @@ struct DreamListView: View {
                         Spacer()
                         
                         Button(action: {
-                            showingAddDream = true
+                            activeSheet = .addDream
                         }) {
                             Image(systemName: "plus")
                                 .font(.title)
@@ -177,75 +215,92 @@ struct DreamListView: View {
             .navigationTitle("梦境记录")
             .navigationBarItems(
                 leading: Button(action: {
-                    showingWordCloud = true
+                    activeSheet = .wordCloud
                 }) {
                     Image(systemName: "cloud")
                         .font(.title2)
                 }
             )
-            .sheet(isPresented: $showingAddDream) {
-                DreamFormView(mode: .add, onComplete: { success in
-                    showingAddDream = false
-                    if success {
-                        viewModel.fetchDreams()
-                    }
-                })
+            // 使用sheet(item:)替代多个sheet(isPresented:)
+            .sheet(item: $activeSheet) { item in
+                switch item {
+                case .addDream:
+                    DreamFormView(mode: .add, onComplete: { success in
+                        activeSheet = nil
+                        if success {
+                            viewModel.fetchDreams()
+                        }
+                    })
+                case .wordCloud:
+                    DreamWordCloudView()
+                case .dreamReport:
+                    DreamReportView(viewModel: viewModel)
+                case .reportHistory:
+                    ReportHistoryView(viewModel: viewModel)
+                case .characterInput:
+                    CharacterInputView(
+                        viewModel: viewModel,
+                        characterName: $characterName,
+                        activeSheet: $activeSheet
+                    )
+                case .characterStory:
+                    CharacterStoryView(viewModel: viewModel)
+                }
             }
-            .sheet(isPresented: $showingWordCloud) {
-                DreamWordCloudView()
-            }
-            .sheet(isPresented: $showingDreamReport) {
-                DreamReportView(viewModel: viewModel)
-            }
-            .sheet(isPresented: $showingReportHistory) {
-                ReportHistoryView(viewModel: viewModel)
-            }
-            .sheet(isPresented: $showingCharacterInput) {
-                CharacterInputView(
-                    viewModel: viewModel,
-                    characterName: $characterName,
-                    showingCharacterStory: $showingCharacterStory
+            .actionSheet(isPresented: $showingReportOptions) {
+                ActionSheet(
+                    title: Text("选择报告时间范围"),
+                    message: Text("根据时间范围生成梦境报告"),
+                    buttons: [
+                        .default(Text("最近一周")) {
+                            updateReportTimeRange(.week)
+                            // 重置选项状态并设置活动sheet
+                            showingReportOptions = false
+                            // 使用异步调用确保状态更新
+                            DispatchQueue.main.async {
+                                activeSheet = .dreamReport
+                                print("开始生成梦境报告按钮被点击 - 最近一周选项")
+                                viewModel.generateDreamReport { success in
+                                    print("报告生成完成，结果: \(success ? "成功" : "失败")")
+                                }
+                            }
+                        },
+                        .default(Text("最近一月")) {
+                            updateReportTimeRange(.month)
+                            // 重置选项状态并设置活动sheet
+                            showingReportOptions = false
+                            // 使用异步调用确保状态更新
+                            DispatchQueue.main.async {
+                                activeSheet = .dreamReport
+                                print("开始生成梦境报告按钮被点击 - 最近一月选项")
+                                viewModel.generateDreamReport { success in
+                                    print("报告生成完成，结果: \(success ? "成功" : "失败")")
+                                }
+                            }
+                        },
+                        .default(Text("最近一年")) {
+                            updateReportTimeRange(.year)
+                            // 重置选项状态并设置活动sheet
+                            showingReportOptions = false
+                            // 使用异步调用确保状态更新
+                            DispatchQueue.main.async {
+                                activeSheet = .dreamReport
+                                print("开始生成梦境报告按钮被点击 - 最近一年选项")
+                                viewModel.generateDreamReport { success in
+                                    print("报告生成完成，结果: \(success ? "成功" : "失败")")
+                                }
+                            }
+                        },
+                        .cancel(Text("取消")) {
+                            // 取消时重置状态
+                            showingReportOptions = false
+                        }
+                    ]
                 )
-            }
-            .sheet(isPresented: $showingCharacterStory) {
-                CharacterStoryView(viewModel: viewModel)
             }
         }
         .onAppear {
             viewModel.fetchDreams()
-        }
-        .actionSheet(isPresented: $showingReportOptions) {
-            ActionSheet(
-                title: Text("选择报告时间范围"),
-                message: Text("根据时间范围生成梦境报告"),
-                buttons: [
-                    .default(Text("最近一周")) {
-                        updateReportTimeRange(.week)
-                        showingDreamReport = true
-                        print("开始生成梦境报告按钮被点击 - 最近一周选项")
-                        viewModel.generateDreamReport { success in
-                            print("报告生成完成，结果: \(success ? "成功" : "失败")")
-                        }
-                    },
-                    .default(Text("最近一月")) {
-                        updateReportTimeRange(.month)
-                        showingDreamReport = true
-                        print("开始生成梦境报告按钮被点击 - 最近一月选项")
-                        viewModel.generateDreamReport { success in
-                            print("报告生成完成，结果: \(success ? "成功" : "失败")")
-                        }
-                    },
-                    .default(Text("最近一年")) {
-                        updateReportTimeRange(.year)
-                        showingDreamReport = true
-                        print("开始生成梦境报告按钮被点击 - 最近一年选项")
-                        viewModel.generateDreamReport { success in
-                            print("报告生成完成，结果: \(success ? "成功" : "失败")")
-                        }
-                    },
-                    .cancel(Text("取消"))
-                ]
-            )
         }
         .alert(item: alertItem) { item in
             Alert(
@@ -347,6 +402,21 @@ struct DreamListView: View {
         
         return dateString
     }
+    
+    // 刷新数据的异步函数
+    private func refreshData() async {
+        // 创建一个异步任务，以便可以等待它完成
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                // 使用forceRefresh参数强制刷新数据
+                self.viewModel.fetchDreams(forceRefresh: true)
+                // 提供一个短暂的延迟以确保UI反馈
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    continuation.resume()
+                }
+            }
+        }
+    }
 }
 
 // 新增：人物志输入View
@@ -354,7 +424,7 @@ struct CharacterInputView: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var viewModel: DreamViewModel
     @Binding var characterName: String
-    @Binding var showingCharacterStory: Bool
+    @Binding var activeSheet: DreamListView.ActiveSheet?
     
     var body: some View {
         NavigationView {
@@ -375,11 +445,15 @@ struct CharacterInputView: View {
                         presentationMode.wrappedValue.dismiss()
                         // 设置加载状态
                         viewModel.isCharacterStoryLoading = true
-                        // 立即显示人物志页面（会显示加载中状态）
-                        showingCharacterStory = true
-                        // 然后开始生成
-                        viewModel.generateCharacterStory(characterName: characterName) { _ in
-                            // 成功或失败回调保持不变
+                        // 使用异步调用确保状态更新
+                        DispatchQueue.main.async {
+                            // 立即显示人物志页面（会显示加载中状态）
+                            print("设置activeSheet为.characterStory")
+                            activeSheet = .characterStory
+                            // 然后开始生成
+                            viewModel.generateCharacterStory(characterName: characterName) { success in
+                                print("人物志生成完成，结果: \(success ? "成功" : "失败")")
+                            }
                         }
                     }
                 }) {

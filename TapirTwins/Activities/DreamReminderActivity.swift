@@ -4,76 +4,6 @@ import WidgetKit
 import Foundation
 import UIKit
 
-// 梦境提醒活动的属性
-struct DreamReminderAttributes: ActivityAttributes {
-    // 活动属性结构体为空
-    public typealias ContentState = ReminderState
-    
-    // 添加空的初始化方法
-    public init() {}
-}
-
-// 将ContentState移出为独立的结构体
-struct ReminderState: Codable, Hashable {
-    // 使用基本类型存储时间戳，避免Date的编解码问题
-    var reminderTimeInterval: TimeInterval
-    var message: String
-    
-    // 计算属性，用于获取Date对象
-    var reminderTime: Date {
-        return Date(timeIntervalSince1970: reminderTimeInterval)
-    }
-    
-    // 简单的初始化方法，接受Date参数
-    init(reminderTime: Date, message: String = "记录你的梦境") {
-        self.reminderTimeInterval = reminderTime.timeIntervalSince1970
-        self.message = message
-    }
-}
-
-// 灵动岛活动视图
-@available(iOS 16.1, *)
-struct DreamReminderLiveActivityView: View {
-    let context: ActivityViewContext<DreamReminderAttributes>
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: "moon.stars.fill")
-                    .foregroundColor(.purple)
-                    .font(.title3)
-                
-                Text("记录梦境")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                    .padding(.leading, 4)
-                
-                Spacer()
-                
-                Text(context.state.reminderTime, style: .time)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.horizontal, 8)
-            
-            Divider()
-                .padding(.vertical, 2)
-            
-            Text(context.state.message)
-                .font(.subheadline)
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(0.2))
-        .cornerRadius(12)
-    }
-}
-
 // 梦境提醒活动管理器
 class DreamReminderActivityManager {
     static let shared = DreamReminderActivityManager()
@@ -88,11 +18,13 @@ class DreamReminderActivityManager {
         // 先停止现有活动
         stopDreamReminderActivity()
         
-        // 如果系统支持Live Activities
+        // 确认系统支持Live Activities并可以授权
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            print("当前设备不支持灵动岛活动")
+            print("当前设备不支持灵动岛活动或未授权")
             return
         }
+        
+        print("准备启动灵动岛活动，时间: \(reminderTime)")
         
         // 创建内容状态
         let initialState = ReminderState(reminderTime: reminderTime, message: message)
@@ -100,7 +32,7 @@ class DreamReminderActivityManager {
         
         do {
             // 使用正确的API调用方式
-            let activity = try Activity.request(
+            let activity = try Activity<DreamReminderAttributes>.request(
                 attributes: attributes,
                 contentState: initialState,
                 pushType: nil
@@ -111,32 +43,40 @@ class DreamReminderActivityManager {
             // 添加延迟更新，确保状态刷新
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 Task {
-                    await activity.update(using: initialState)
+                    await self.updateActivity(message: message)
                     print("已更新初始状态")
                 }
             }
         } catch {
             print("无法启动梦境提醒活动: \(error.localizedDescription)")
+            print("详细错误信息: \(error)")
         }
     }
     
     // 更新活动状态
     @available(iOS 16.1, *)
     func updateActivity(message: String) {
-        guard let currentActivity = Activity<DreamReminderAttributes>.activities.first else {
+        // 获取当前活动中的第一个
+        guard !Activity<DreamReminderAttributes>.activities.isEmpty else {
             print("没有活动的梦境提醒活动可更新")
             return
         }
         
-        // 更新活动状态
-        let updatedState = ReminderState(
-            reminderTime: Date(), 
-            message: message
-        )
-        
-        Task.init {
-            await currentActivity.update(using: updatedState)
-            print("已更新梦境提醒活动")
+        for activity in Activity<DreamReminderAttributes>.activities {
+            // 更新活动状态
+            let updatedState = ReminderState(
+                reminderTime: Date(), 
+                message: message
+            )
+            
+            Task {
+                do {
+                    await activity.update(using: updatedState)
+                    print("已更新梦境提醒活动: \(activity.id)")
+                } catch {
+                    print("更新梦境提醒活动失败: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
@@ -148,9 +88,13 @@ class DreamReminderActivityManager {
         
         // 遍历并结束所有活动
         for activity in activities {
-            Task.init {
-                await activity.end(dismissalPolicy: .immediate)
-                print("已结束梦境提醒活动")
+            Task {
+                do {
+                    await activity.end(dismissalPolicy: .immediate)
+                    print("已结束梦境提醒活动: \(activity.id)")
+                } catch {
+                    print("结束梦境提醒活动失败: \(error.localizedDescription)")
+                }
             }
         }
     }

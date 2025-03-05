@@ -318,6 +318,10 @@ class DeepSeekService {
             reportTitle = "梦境年报"
         }
         
+        // 获取用户设置的报告长度
+        let settings = UserSettings.load()
+        let wordCount = settings.dreamReportLength.wordCount
+        
         return """
         你是一位创意数据分析师，擅长为用户生成个性化的数据报告。
         
@@ -345,7 +349,7 @@ class DeepSeekService {
         - 使用 > 引用突出重要见解
         - 适当使用段落分隔，保证可读性
         
-        请使用创意、活泼的语言风格，像是在讲述一个有趣的故事。可以添加一些虚构的视觉元素描述（如"这里有一张你的梦境词云图"、"这是你的梦境情绪波动曲线"等）。报告长度约1000字。
+        请使用创意、活泼的语言风格，像是在讲述一个有趣的故事。可以添加一些虚构的视觉元素描述（如"这里有一张你的梦境词云图"、"这是你的梦境情绪波动曲线"等）。报告长度约\(wordCount)字。
         
         结构示例：
         ```

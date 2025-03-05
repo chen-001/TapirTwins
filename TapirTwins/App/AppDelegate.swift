@@ -8,6 +8,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // 设置通知代理
         UNUserNotificationCenter.current().delegate = self
         
+        // 检查并恢复灵动岛陪伴模式
+        restoreCompanionMode()
+        
         return true
     }
     
@@ -32,5 +35,26 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         completionHandler()
+    }
+    
+    // 恢复灵动岛陪伴模式
+    private func restoreCompanionMode() {
+        if #available(iOS 16.1, *) {
+            // 延迟执行，确保应用完全启动
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                let settingsViewModel = SettingsViewModel()
+                
+                // 检查是否首次启动但未设置标志位
+                let hasSetFlag = UserDefaults.standard.bool(forKey: "hasSavedCompanionModeSetting")
+                if !hasSetFlag {
+                    // 首次启动，设置为默认开启
+                    UserDefaults.standard.set(true, forKey: "companionModeEnabled")
+                    UserDefaults.standard.set(true, forKey: "hasSavedCompanionModeSetting")
+                }
+                
+                // 无论如何都会检查和恢复
+                settingsViewModel.checkAndRestoreCompanionMode()
+            }
+        }
     }
 } 

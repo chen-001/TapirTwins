@@ -19,7 +19,12 @@ class SpaceViewModel: ObservableObject {
     
     // MARK: - 空间管理
     
-    func fetchSpaces() {
+    func fetchSpaces(forceRefresh: Bool = false) {
+        // 如果已经加载过数据且不需要强制刷新，直接返回
+        if !forceRefresh && !spaces.isEmpty {
+            return
+        }
+        
         isLoading = true
         
         spaceService.fetchSpaces { [weak self] result in

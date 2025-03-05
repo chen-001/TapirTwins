@@ -4,31 +4,31 @@ struct SpaceListView: View {
     @StateObject private var viewModel = SpaceViewModel()
     @State private var showingCreateSpace = false
     @State private var showingJoinSpace = false
-    @State private var newSpaceName = ""
-    @State private var newSpaceDescription = ""
-    @State private var inviteCode = ""
     
     var body: some View {
         NavigationView {
             ZStack {
-                Color(UIColor.systemBackground)
-                    .ignoresSafeArea()
+                Color(.systemBackground).edgesIgnoringSafeArea(.all)
                 
-                VStack {
-                    if viewModel.spaces.isEmpty && !viewModel.isLoading {
+                if viewModel.isLoading {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                } else {
+                    if viewModel.spaces.isEmpty {
                         VStack(spacing: 20) {
-                            Image(systemName: "person.2.circle")
+                            Image(systemName: "globe")
                                 .font(.system(size: 60))
                                 .foregroundColor(.gray)
                             
-                            Text("你还没有加入任何空间")
+                            Text("还没有加入任何空间")
                                 .font(.headline)
                                 .foregroundColor(.gray)
                             
                             Button(action: {
                                 showingCreateSpace = true
                             }) {
-                                Text("创建新空间")
+                                Text("创建空间")
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .padding()
@@ -54,24 +54,21 @@ struct SpaceListView: View {
                         .padding()
                     } else {
                         List {
-                            ForEach(viewModel.spaces, id: \.id) { space in
+                            ForEach(viewModel.spaces) { space in
                                 NavigationLink(destination: SpaceDetailView(spaceId: space.id)) {
                                     SpaceRow(space: space)
                                 }
+                                .onAppear {
+                                    viewModel.fetchSpaces(forceRefresh: true)
+                                }
                             }
                         }
-                        .listStyle(InsetGroupedListStyle())
-                        .background(Color(UIColor.systemBackground))
+                        .listStyle(PlainListStyle())
+                        .refreshable {
+                            // 使用forceRefresh参数强制刷新数据
+                            await refreshData()
+                        }
                     }
-                }
-                
-                if viewModel.isLoading {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                        .frame(width: 50, height: 50)
-                        .background(Color.white.opacity(0.8))
-                        .cornerRadius(10)
                 }
             }
             .navigationTitle("我的空间")
@@ -109,6 +106,21 @@ struct SpaceListView: View {
             }
             .onAppear {
                 viewModel.fetchSpaces()
+            }
+        }
+    }
+    
+    // 刷新数据的异步函数
+    private func refreshData() async {
+        // 创建一个异步任务，以便可以等待它完成
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                // 使用forceRefresh参数强制刷新数据
+                self.viewModel.fetchSpaces(forceRefresh: true)
+                // 提供一个短暂的延迟以确保UI反馈
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    continuation.resume()
+                }
             }
         }
     }

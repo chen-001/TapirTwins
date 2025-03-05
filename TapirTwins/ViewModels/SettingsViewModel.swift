@@ -11,8 +11,19 @@ class SettingsViewModel: ObservableObject {
     @Published var predictionLength: Int = 400
     @Published var dreamAnalysisTimeRange: AnalysisTimeRange = .month
     @Published var dreamReportTimeRange: ReportTimeRange = .month
+    @Published var dreamReportLength: ReportLength = .medium
+    @Published var onlySelfRecordings: Bool = false
     @Published var isLoading = false
     @Published var errorMessage: String?
+    
+    // 灵动岛陪伴模式设置
+    @Published var companionModeEnabled: Bool = false {
+        didSet {
+            if companionModeEnabled != oldValue {
+                updateCompanionModeSettings(enabled: companionModeEnabled)
+            }
+        }
+    }
     
     private let apiService = APIService.shared
     
@@ -27,9 +38,27 @@ class SettingsViewModel: ObservableObject {
         self.predictionLength = settings.predictionLength
         self.dreamAnalysisTimeRange = settings.dreamAnalysisTimeRange
         self.dreamReportTimeRange = settings.dreamReportTimeRange
+        self.dreamReportLength = settings.dreamReportLength
+        self.onlySelfRecordings = settings.onlySelfRecordings
         
         // 检查通知权限
         checkNotificationPermission()
+        
+        // 加载灵动岛陪伴模式设置 - 默认为开启状态
+        companionModeEnabled = UserDefaults.standard.bool(forKey: "companionModeEnabled")
+        
+        // 如果是首次使用，设置为开启状态
+        let isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasSavedCompanionModeSetting")
+        if isFirstLaunch {
+            companionModeEnabled = true
+            UserDefaults.standard.set(true, forKey: "companionModeEnabled")
+            UserDefaults.standard.set(true, forKey: "hasSavedCompanionModeSetting")
+            
+            // 应用设置变更
+            if #available(iOS 16.1, *) {
+                DreamCompanionManager.shared.startCompanionMode()
+            }
+        }
     }
     
     func fetchSettings() {
@@ -64,6 +93,12 @@ class SettingsViewModel: ObservableObject {
                     if let reportTimeRange = settings.dreamReportTimeRange {
                         self?.dreamReportTimeRange = reportTimeRange
                     }
+                    if let reportLength = settings.dreamReportLength {
+                        self?.dreamReportLength = reportLength
+                    }
+                    if let onlySelfRecordings = settings.onlySelfRecordings {
+                        self?.onlySelfRecordings = onlySelfRecordings
+                    }
                     
                     // 更新本地存储
                     var userSettings = UserSettings.load()
@@ -88,6 +123,12 @@ class SettingsViewModel: ObservableObject {
                     }
                     if let reportTimeRange = settings.dreamReportTimeRange {
                         userSettings.dreamReportTimeRange = reportTimeRange
+                    }
+                    if let reportLength = settings.dreamReportLength {
+                        userSettings.dreamReportLength = reportLength
+                    }
+                    if let onlySelfRecordings = settings.onlySelfRecordings {
+                        userSettings.onlySelfRecordings = onlySelfRecordings
                     }
                     userSettings.save()
                     
@@ -254,30 +295,42 @@ class SettingsViewModel: ObservableObject {
                 
                 // 启动灵动岛活动
                 if #available(iOS 16.1, *) {
-                    // 获取明天的提醒时间作为显示
-                    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-                    let tomorrowReminderTime = Calendar.current.date(
-                        bySettingHour: hour,
-                        minute: minute,
-                        second: 0,
-                        of: tomorrow
-                    ) ?? tomorrow
+                    // 获取即将到来的提醒时间
+                    var nextReminderTime: Date
                     
-                    // 测试当前时间的提醒（仅为了测试）
-                    let testTime = Calendar.current.date(byAdding: .minute, value: 1, to: Date()) ?? Date()
+                    // 计算下一次提醒时间（如果今天的时间已经过了，则使用明天的时间）
+                    let now = Date()
+                    let todayComponents = calendar.dateComponents([.year, .month, .day], from: now)
+                    var reminderComponents = todayComponents
+                    reminderComponents.hour = hour
+                    reminderComponents.minute = minute
+                    reminderComponents.second = 0
                     
-                    // 启动灵动岛活动，使用测试时间进行测试
+                    if let todayReminderTime = calendar.date(from: reminderComponents) {
+                        if todayReminderTime > now {
+                            // 如果今天的提醒时间还没到，就用今天的
+                            nextReminderTime = todayReminderTime
+                        } else {
+                            // 今天的时间已过，使用明天的
+                            nextReminderTime = calendar.date(byAdding: .day, value: 1, to: todayReminderTime) ?? now
+                        }
+                    } else {
+                        // 创建日期失败，使用明天的备选时间
+                        nextReminderTime = calendar.date(
+                            bySettingHour: hour,
+                            minute: minute,
+                            second: 0,
+                            of: calendar.date(byAdding: .day, value: 1, to: now) ?? now
+                        ) ?? now
+                    }
+                    
+                    print("准备启动灵动岛活动，下次提醒时间: \(nextReminderTime)")
+                    
+                    // 启动灵动岛活动，使用计算的下一次提醒时间
                     DreamReminderActivityManager.shared.startDreamReminderActivity(
-                        reminderTime: testTime, // 用于测试，实际使用时改回tomorrowReminderTime
+                        reminderTime: nextReminderTime,
                         message: "点击记录昨晚的梦境"
                     )
-                    
-                    // 测试完成后可以恢复为正常时间
-                    // 注意：上线版本请使用下面的代码而不是上面的测试代码
-                    // DreamReminderActivityManager.shared.startDreamReminderActivity(
-                    //     reminderTime: tomorrowReminderTime,
-                    //     message: "点击记录昨晚的梦境"
-                    // )
                 }
             }
         }
@@ -391,6 +444,115 @@ class SettingsViewModel: ObservableObject {
                 case .success(_):
                     // 成功更新
                     print("成功更新梦境报告类型")
+                case .failure(let error):
+                    self?.handleError(error)
+                }
+            }
+        }
+    }
+    
+    // 更新灵动岛陪伴模式设置
+    func updateCompanionModeSettings(enabled: Bool) {
+        // 先保存设置值，避免影响运行状态
+        UserDefaults.standard.set(enabled, forKey: "companionModeEnabled")
+        companionModeEnabled = enabled
+        
+        if #available(iOS 16.1, *) {
+            if enabled {
+                // 启动灵动岛陪伴模式
+                DispatchQueue.main.async {
+                    DreamCompanionManager.shared.startCompanionMode()
+                    print("已启动灵动岛陪伴模式")
+                }
+            } else {
+                // 停止灵动岛陪伴模式
+                DispatchQueue.main.async {
+                    DreamCompanionManager.shared.stopCompanionMode()
+                    print("已停止灵动岛陪伴模式")
+                }
+            }
+        }
+    }
+    
+    // 刷新陪伴模式签名
+    func refreshCompanionSignature() {
+        if #available(iOS 16.1, *) {
+            DreamCompanionManager.shared.updateToNewSignature()
+        }
+    }
+    
+    // 在程序启动时检查并恢复陪伴模式状态
+    func checkAndRestoreCompanionMode() {
+        if #available(iOS 16.1, *) {
+            if companionModeEnabled {
+                // 如果启用了但不活跃，则启动
+                if !DreamCompanionManager.shared.isCompanionModeActive() {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        DreamCompanionManager.shared.startCompanionMode()
+                        print("恢复灵动岛陪伴模式")
+                    }
+                }
+            }
+        }
+    }
+    
+    // 新增：更新梦境报告长度设置
+    func updateDreamReportLength(length: ReportLength) {
+        self.dreamReportLength = length
+        
+        // 更新本地设置
+        var userSettings = UserSettings.load()
+        userSettings.dreamReportLength = length
+        userSettings.save()
+        
+        // 更新服务器设置
+        let settings = UserSettingsRequest(
+            dreamReportLength: length
+        )
+        
+        isLoading = true
+        errorMessage = nil
+        
+        apiService.updateUserSettings(settings: settings) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                
+                switch result {
+                case .success(_):
+                    // 成功更新
+                    print("成功更新梦境报告长度")
+                case .failure(let error):
+                    self?.handleError(error)
+                }
+            }
+        }
+    }
+    
+    // 新增：更新是否只包含自己记录的梦境设置
+    func updateOnlySelfRecordings(enabled: Bool) {
+        self.onlySelfRecordings = enabled
+        
+        // 更新本地设置
+        var userSettings = UserSettings.load()
+        userSettings.onlySelfRecordings = enabled
+        userSettings.save()
+        
+        // 更新服务器设置
+        let settings = UserSettingsRequest(
+            onlySelfRecordings: enabled
+        )
+        
+        isLoading = true
+        errorMessage = nil
+        
+        apiService.updateUserSettings(settings: settings) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                
+                switch result {
+                case .success(_):
+                    // 成功更新
+                    print("成功更新梦境记录者筛选设置")
                 case .failure(let error):
                     self?.handleError(error)
                 }

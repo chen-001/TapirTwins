@@ -50,33 +50,58 @@ class DreamViewModel: ObservableObject {
         }
     }
     
-    func fetchDreams() {
-        isLoading = true
+    func fetchDreams(forceRefresh: Bool = false) {
+        // 先展示已有的缓存梦境数据（如果有）
+        let hasCachedDreams = !self.dreams.isEmpty && !forceRefresh
+        if hasCachedDreams {
+            print("使用缓存的\(self.dreams.count)个梦境，同时在后台更新数据")
+            // 梦境应该已按日期排序，无需再次排序
+        }
+        
+        // 设置加载状态（如果没有缓存数据或强制刷新，则显示加载器）
+        if !hasCachedDreams {
+            isLoading = true
+        }
         errorMessage = nil
         
         // 加载报告历史记录
         loadReportHistoryFromLocal()
         
+        print("开始获取梦境列表...")
+        
+        // 添加随机参数，确保不返回缓存数据
+        var urlParams: [String: String] = ["_nocache": UUID().uuidString]
+        
         // 先获取个人梦境
-        apiService.fetchDreams { [weak self] result in
+        apiService.fetchDreams(urlParams: urlParams) { [weak self] result in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 switch result {
                 case .success(let personalDreams):
-                    self.dreams = personalDreams
+                    print("成功获取到 \(personalDreams.count) 个个人梦境")
                     
                     // 检查是否有默认空间，如果有，则获取该空间的梦境
                     let settings = UserSettings.load()
                     if let defaultSpaceId = settings.defaultShareSpaceId {
-                        self.fetchSpaceDreamsAndMerge(spaceId: defaultSpaceId)
+                        // 获取空间梦境并合并
+                        self.fetchSpaceDreamsAndMerge(spaceId: defaultSpaceId, personalDreams: personalDreams)
                     } else {
-                        // 没有默认空间，所以只显示个人梦境
-                        self.dreams.sort(by: { $0.date > $1.date })
+                        // 没有默认空间，只显示个人梦境
+                        // 检查数据是否有变化
+                        let dreamsChanged = self.haveDreamsChanged(self.dreams, personalDreams)
+                        if dreamsChanged || forceRefresh {
+                            print("检测到梦境数据变化，更新UI")
+                            // 按日期排序
+                            self.dreams = personalDreams.sorted(by: { $0.date > $1.date })
+                        } else {
+                            print("梦境数据无变化，无需更新UI")
+                        }
                         self.isLoading = false
                     }
                     
                 case .failure(let error):
+                    print("获取个人梦境失败: \(error)")
                     self.handleError(error)
                     self.isLoading = false
                 }
@@ -84,8 +109,11 @@ class DreamViewModel: ObservableObject {
         }
     }
     
-    private func fetchSpaceDreamsAndMerge(spaceId: String) {
-        apiService.fetchSpaceDreams(spaceId: spaceId) { [weak self] result in
+    private func fetchSpaceDreamsAndMerge(spaceId: String, personalDreams: [Dream] = []) {
+        // 添加随机参数，确保不返回缓存数据
+        var urlParams: [String: String] = ["_nocache": UUID().uuidString]
+        
+        apiService.fetchSpaceDreams(spaceId: spaceId, urlParams: urlParams) { [weak self] result in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
@@ -93,13 +121,13 @@ class DreamViewModel: ObservableObject {
                 
                 switch result {
                 case .success(let spaceDreams):
-                    // 将空间梦境添加到dreams数组，但需要避免重复
-                    var uniqueDreams = self.dreams
+                    // 合并个人梦境和空间梦境
+                    var allDreams = personalDreams
                     
                     // 遍历空间梦境，只添加不重复的梦境
                     for spaceDream in spaceDreams {
                         // 检查是否已经存在相同内容的梦境（比较标题和日期）
-                        let isDuplicate = uniqueDreams.contains { existingDream in
+                        let isDuplicate = allDreams.contains { existingDream in
                             // 认为标题相同且日期相同的梦境是重复的
                             return existingDream.title == spaceDream.title && 
                                    existingDream.date == spaceDream.date
@@ -107,18 +135,115 @@ class DreamViewModel: ObservableObject {
                         
                         // 如果不是重复的，则添加到列表
                         if !isDuplicate {
-                            uniqueDreams.append(spaceDream)
+                            allDreams.append(spaceDream)
                         }
                     }
                     
                     // 按日期排序
-                    self.dreams = uniqueDreams.sorted(by: { $0.date > $1.date })
+                    let sortedDreams = allDreams.sorted(by: { $0.date > $1.date })
+                    
+                    // 检查梦境数据是否有变化
+                    let dreamsChanged = self.haveDreamsChanged(self.dreams, sortedDreams)
+                    if dreamsChanged {
+                        print("检测到梦境数据变化（包含空间梦境），更新UI")
+                        self.dreams = sortedDreams
+                    } else {
+                        print("梦境数据无变化（包含空间梦境），无需更新UI")
+                    }
                     
                 case .failure(let error):
+                    print("获取空间梦境失败: \(error)")
                     self.handleError(error)
+                    
+                    // 即使获取空间梦境失败，也检查个人梦境是否有变化
+                    let dreamsChanged = self.haveDreamsChanged(self.dreams, personalDreams)
+                    if dreamsChanged {
+                        print("检测到梦境数据变化（仅个人梦境），更新UI")
+                        // 按日期排序
+                        self.dreams = personalDreams.sorted(by: { $0.date > $1.date })
+                    } else {
+                        print("梦境数据无变化（仅个人梦境），无需更新UI")
+                    }
                 }
             }
         }
+    }
+    
+    // 添加检查梦境列表是否有变化的私有方法
+    private func haveDreamsChanged(_ oldDreams: [Dream], _ newDreams: [Dream]) -> Bool {
+        // 如果数量不同，直接认为有变化
+        if oldDreams.count != newDreams.count {
+            print("梦境数量不同: 旧=\(oldDreams.count), 新=\(newDreams.count)")
+            return true
+        }
+        
+        // 创建梦境ID集合进行比较
+        let oldIds = Set(oldDreams.map { $0.id })
+        let newIds = Set(newDreams.map { $0.id })
+        
+        // 如果ID集合不同，认为有变化
+        if oldIds != newIds {
+            print("梦境ID集合不同")
+            let missingInOld = newIds.subtracting(oldIds)
+            let missingInNew = oldIds.subtracting(newIds)
+            
+            if !missingInOld.isEmpty {
+                print("旧集合缺少的ID: \(missingInOld.joined(separator: ", "))")
+            }
+            
+            if !missingInNew.isEmpty {
+                print("新集合缺少的ID: \(missingInNew.joined(separator: ", "))")
+            }
+            
+            return true
+        }
+        
+        // 创建ID到梦境的映射，用于详细比较
+        let oldMap = Dictionary(uniqueKeysWithValues: oldDreams.map { ($0.id, $0) })
+        let newMap = Dictionary(uniqueKeysWithValues: newDreams.map { ($0.id, $0) })
+        
+        // 比较每个梦境的内容和解释
+        for id in oldIds {
+            let oldDream = oldMap[id]!
+            let newDream = newMap[id]!
+            
+            // 比较基本属性
+            if oldDream.title != newDream.title || 
+               oldDream.content != newDream.content || 
+               oldDream.date != newDream.date {
+                print("梦境内容不同: ID=\(id)")
+                return true
+            }
+            
+            // 比较解梦数量
+            let oldInterpretationsCount = oldDream.dreamInterpretations?.count ?? 0
+            let newInterpretationsCount = newDream.dreamInterpretations?.count ?? 0
+            
+            if oldInterpretationsCount != newInterpretationsCount {
+                print("梦境解释数量不同: ID=\(id), 旧=\(oldInterpretationsCount), 新=\(newInterpretationsCount)")
+                return true
+            }
+            
+            // 比较续写数量
+            let oldContinuationsCount = oldDream.dreamContinuations?.count ?? 0
+            let newContinuationsCount = newDream.dreamContinuations?.count ?? 0
+            
+            if oldContinuationsCount != newContinuationsCount {
+                print("梦境续写数量不同: ID=\(id), 旧=\(oldContinuationsCount), 新=\(newContinuationsCount)")
+                return true
+            }
+            
+            // 比较预测数量
+            let oldPredictionsCount = oldDream.dreamPredictions?.count ?? 0
+            let newPredictionsCount = newDream.dreamPredictions?.count ?? 0
+            
+            if oldPredictionsCount != newPredictionsCount {
+                print("梦境预测数量不同: ID=\(id), 旧=\(oldPredictionsCount), 新=\(newPredictionsCount)")
+                return true
+            }
+        }
+        
+        return false
     }
     
     func addDream(title: String, content: String, date: String, completion: @escaping (Bool) -> Void) {
@@ -888,6 +1013,7 @@ class DreamViewModel: ObservableObject {
     func generateDreamReport(completion: @escaping (Bool) -> Void) {
         let settings = UserSettings.load()
         let reportTimeRange = settings.dreamReportTimeRange
+        let onlySelfRecordings = settings.onlySelfRecordings
         
         print("开始生成梦境报告，选择的时间范围: \(reportTimeRange.displayName)")
         
@@ -907,8 +1033,21 @@ class DreamViewModel: ObservableObject {
         
         print("报告时间范围: 从 \(pastDate) 到 \(today)")
         
-        // 筛选时间范围内的梦境
+        // 获取当前用户ID
+        let currentUserId = AuthService.shared.getCurrentUser()?.id
+        
+        // 筛选时间范围内的梦境，如果设置了仅包含自己记录的梦境，则过滤出自己的梦境
         let filteredDreams = dreams.compactMap { dream -> Dream? in
+            // 首先检查是否需要筛选记录者
+            if onlySelfRecordings, let userId = dream.userId, let currentId = currentUserId {
+                // 如果需要筛选记录者且当前梦境不是自己记录的，则排除
+                if userId != currentId {
+                    print("排除非自己记录的梦境: \(dream.title), 记录者ID: \(userId)")
+                    return nil
+                }
+            }
+            
+            // 然后检查时间范围
             guard let dreamDate = formatDateToDate(dream.date) else {
                 print("⚠️ 梦境报告 - 日期解析失败: \(dream.date)")
                 return nil
@@ -945,7 +1084,7 @@ class DreamViewModel: ObservableObject {
                     // 创建报告结果
                     let report = DreamReport(
                         id: UUID().uuidString,
-                        userId: "", // 实际应用中应填充用户ID
+                        userId: currentUserId ?? "", 
                         reportType: reportTimeRange.rawValue,
                         content: reportContent,
                         createdAt: self.getCurrentDateString(),
@@ -1038,5 +1177,108 @@ class DreamViewModel: ObservableObject {
         
         print("无法解析日期: \(dateString)")
         return nil
+    }
+    
+    // 添加获取单个梦境的方法
+    func fetchDream(id: String, completion: @escaping (Dream?) -> Void) {
+        // 先检查缓存中是否有该梦境
+        if let cachedDream = dreams.first(where: { $0.id == id }) {
+            print("使用缓存的梦境数据(ID: \(id))，同时在后台更新")
+            completion(cachedDream)
+        } else {
+            print("缓存中没有找到梦境(ID: \(id))，正在加载...")
+            isLoading = true
+        }
+        
+        errorMessage = nil
+        
+        // 添加随机参数，确保不返回缓存数据
+        var urlParams: [String: String] = ["_nocache": UUID().uuidString]
+        
+        // 无论是否有缓存，都从API获取最新数据
+        apiService.fetchDream(id: id, urlParams: urlParams) { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
+                
+                switch result {
+                case .success(let dream):
+                    print("成功从API获取梦境(ID: \(id))")
+                    
+                    // 检查是否与缓存数据不同
+                    if let index = self.dreams.firstIndex(where: { $0.id == id }) {
+                        let cachedDream = self.dreams[index]
+                        
+                        // 使用haveDreamChanged检查单个梦境是否有变化
+                        if self.hasDreamChanged(cachedDream, dream) {
+                            print("检测到梦境数据变化，更新UI")
+                            // 更新缓存
+                            self.dreams[index] = dream
+                            // 通知调用者
+                            completion(dream)
+                        } else {
+                            print("梦境数据无变化，无需更新UI")
+                        }
+                    } else {
+                        // 缓存中没有该梦境，添加到缓存
+                        print("将新获取的梦境添加到缓存")
+                        self.dreams.append(dream)
+                        self.dreams.sort(by: { $0.date > $1.date })
+                        // 通知调用者
+                        completion(dream)
+                    }
+                    
+                case .failure(let error):
+                    print("获取梦境失败(ID: \(id)): \(error)")
+                    self.handleError(error)
+                    
+                    // 如果API获取失败但缓存中有数据，不需要再次调用completion
+                    if !self.dreams.contains(where: { $0.id == id }) {
+                        completion(nil)
+                    }
+                }
+            }
+        }
+    }
+    
+    // 用于比较单个梦境是否有变化的辅助方法
+    private func hasDreamChanged(_ oldDream: Dream, _ newDream: Dream) -> Bool {
+        // 检查基本属性
+        if oldDream.title != newDream.title || 
+           oldDream.content != newDream.content || 
+           oldDream.date != newDream.date {
+            print("梦境内容不同: ID=\(oldDream.id)")
+            return true
+        }
+        
+        // 比较解梦数量
+        let oldInterpretationsCount = oldDream.dreamInterpretations?.count ?? 0
+        let newInterpretationsCount = newDream.dreamInterpretations?.count ?? 0
+        
+        if oldInterpretationsCount != newInterpretationsCount {
+            print("梦境解释数量不同: ID=\(oldDream.id), 旧=\(oldInterpretationsCount), 新=\(newInterpretationsCount)")
+            return true
+        }
+        
+        // 比较续写数量
+        let oldContinuationsCount = oldDream.dreamContinuations?.count ?? 0
+        let newContinuationsCount = newDream.dreamContinuations?.count ?? 0
+        
+        if oldContinuationsCount != newContinuationsCount {
+            print("梦境续写数量不同: ID=\(oldDream.id), 旧=\(oldContinuationsCount), 新=\(newContinuationsCount)")
+            return true
+        }
+        
+        // 比较预测数量
+        let oldPredictionsCount = oldDream.dreamPredictions?.count ?? 0
+        let newPredictionsCount = newDream.dreamPredictions?.count ?? 0
+        
+        if oldPredictionsCount != newPredictionsCount {
+            print("梦境预测数量不同: ID=\(oldDream.id), 旧=\(oldPredictionsCount), 新=\(newPredictionsCount)")
+            return true
+        }
+        
+        return false
     }
 }

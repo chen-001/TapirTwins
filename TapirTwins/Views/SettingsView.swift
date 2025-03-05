@@ -147,6 +147,74 @@ struct SettingsView: View {
                             .padding(.top, 4)
                     }
                     .padding(.vertical, 8)
+                    
+                    // 新增：梦境报告长度设置
+                    VStack(alignment: .leading) {
+                        Text("梦境报告长度")
+                            .font(.headline)
+                        
+                        Picker("", selection: $viewModel.dreamReportLength) {
+                            ForEach(ReportLength.allCases, id: \.self) { length in
+                                Text(length.displayName).tag(length)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .onChange(of: viewModel.dreamReportLength) { newValue in
+                            viewModel.updateDreamReportLength(length: newValue)
+                        }
+                        
+                        Text("设置梦境报告详细程度")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding(.top, 4)
+                    }
+                    .padding(.vertical, 8)
+                    
+                    // 新增：梦境记录者筛选设置
+                    Toggle(isOn: $viewModel.onlySelfRecordings) {
+                        VStack(alignment: .leading) {
+                            Text("梦境报告仅传入我记录的梦境")
+                                .font(.headline)
+                            
+                            Text("开启后，仅分析由您自己记录的梦境")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .padding(.top, 2)
+                        }
+                    }
+                    .onChange(of: viewModel.onlySelfRecordings) { newValue in
+                        viewModel.updateOnlySelfRecordings(enabled: newValue)
+                    }
+                    .padding(.vertical, 8)
+                    
+                    // 添加灵动岛陪伴模式设置
+                    if #available(iOS 16.1, *) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle(isOn: $viewModel.companionModeEnabled) {
+                                VStack(alignment: .leading) {
+                                    Text("貘婆婆灵动岛陪伴")
+                                        .font(.headline)
+                                    
+                                    Text("在灵动岛上显示貘婆婆的美好诗句")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            
+                            if viewModel.companionModeEnabled {
+                                Button(action: {
+                                    viewModel.refreshCompanionSignature()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                        Text("刷新签名")
+                                    }
+                                    .foregroundColor(.blue)
+                                }
+                                .padding(.leading, 8)
+                            }
+                        }
+                    }
                 }
                 
                 Section(header: Text("AI内容设置")) {
@@ -302,6 +370,17 @@ struct SettingsView: View {
             .onAppear {
                 spaceViewModel.fetchSpaces()
                 viewModel.fetchSettings()
+            }
+            .onDisappear {
+                // 页面消失时，确保灵动岛状态一致
+                if #available(iOS 16.1, *) {
+                    // 延迟执行，确保视图完全消失
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if viewModel.companionModeEnabled {
+                            DreamCompanionManager.shared.startCompanionMode()
+                        }
+                    }
+                }
             }
             .overlay(
                 Group {

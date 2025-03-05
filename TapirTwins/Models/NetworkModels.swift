@@ -24,7 +24,4 @@ enum NetworkError: Error {
     case unauthorized
 }
 
-// 错误响应结构体
-struct ErrorResponse: Codable {
-    let error: String
-}
+// 错误响应结构体已移至APIModels.swift

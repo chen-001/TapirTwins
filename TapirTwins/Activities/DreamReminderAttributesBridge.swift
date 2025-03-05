@@ -1,13 +1,8 @@
-//
-//  DreamReminderWidgetExtensionBundle.swift
-//  DreamReminderWidgetExtension
-//
-//  Created by 陈宗伟 on 2025/3/4.
-//
-
-import WidgetKit
-import SwiftUI
+import Foundation
 import ActivityKit
+import WidgetKit
+
+// 这是桥接文件，重新导出Widget扩展中定义的类型，确保主应用可以访问相同的类型定义
 
 // 梦境提醒活动的属性
 public struct DreamReminderAttributes: ActivityAttributes {
@@ -34,15 +29,4 @@ public struct ReminderState: Codable, Hashable {
         self.reminderTimeInterval = reminderTime.timeIntervalSince1970
         self.message = message
     }
-}
-
-@main
-struct DreamReminderWidgetExtensionBundle: WidgetBundle {
-    var body: some Widget {
-        DreamReminderWidgetExtension()
-        
-        if #available(iOS 16.1, *) {
-            DreamReminderWidgetExtensionLiveActivity()
-        }
-    }
-}
+} 

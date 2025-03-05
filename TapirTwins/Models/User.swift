@@ -17,6 +17,10 @@ struct UserSettings: Codable {
     var dreamAnalysisTimeRange: AnalysisTimeRange = .month
     // 梦境报告的时间范围设置
     var dreamReportTimeRange: ReportTimeRange = .month
+    // 新增：梦境报告长度设置
+    var dreamReportLength: ReportLength = .medium
+    // 新增：是否只包含自己记录的梦境
+    var onlySelfRecordings: Bool = false
     // 任务统计起始日期
     var statisticsStartDate: String?
     
@@ -81,6 +85,29 @@ enum ReportTimeRange: String, Codable, CaseIterable {
     }
 }
 
+// 新增：梦境报告长度枚举
+enum ReportLength: String, Codable, CaseIterable {
+    case brief = "brief"        // 简洁
+    case medium = "medium"      // 中等
+    case detailed = "detailed"  // 详细
+    
+    var displayName: String {
+        switch self {
+        case .brief: return "简洁"
+        case .medium: return "标准"
+        case .detailed: return "详细"
+        }
+    }
+    
+    var wordCount: Int {
+        switch self {
+        case .brief: return 500
+        case .medium: return 1000
+        case .detailed: return 2000
+        }
+    }
+}
+
 struct UserSettingsRequest: Codable {
     var defaultShareSpaceId: String?
     var dreamReminderEnabled: Bool?
@@ -90,11 +117,23 @@ struct UserSettingsRequest: Codable {
     var predictionLength: Int?
     var dreamAnalysisTimeRange: AnalysisTimeRange?
     var dreamReportTimeRange: ReportTimeRange?
+    var dreamReportLength: ReportLength?
+    var onlySelfRecordings: Bool?
     var statisticsStartDate: String?
     
     // 添加一个简单的初始化方法，只接收统计起始日期
     init(statisticsStartDate: String) {
         self.statisticsStartDate = statisticsStartDate
+    }
+    
+    // 添加只接收梦境报告长度的初始化方法
+    init(dreamReportLength: ReportLength) {
+        self.dreamReportLength = dreamReportLength
+    }
+    
+    // 添加只接收是否只包含自己记录的梦境设置的初始化方法
+    init(onlySelfRecordings: Bool) {
+        self.onlySelfRecordings = onlySelfRecordings
     }
     
     // 添加完整的初始化方法，兼容现有代码
@@ -106,6 +145,8 @@ struct UserSettingsRequest: Codable {
          predictionLength: Int? = nil,
          dreamAnalysisTimeRange: AnalysisTimeRange? = nil,
          dreamReportTimeRange: ReportTimeRange? = nil,
+         dreamReportLength: ReportLength? = nil,
+         onlySelfRecordings: Bool? = nil,
          statisticsStartDate: String? = nil) {
         self.defaultShareSpaceId = defaultShareSpaceId
         self.dreamReminderEnabled = dreamReminderEnabled
@@ -115,6 +156,8 @@ struct UserSettingsRequest: Codable {
         self.predictionLength = predictionLength
         self.dreamAnalysisTimeRange = dreamAnalysisTimeRange
         self.dreamReportTimeRange = dreamReportTimeRange
+        self.dreamReportLength = dreamReportLength
+        self.onlySelfRecordings = onlySelfRecordings
         self.statisticsStartDate = statisticsStartDate
     }
 }
@@ -128,6 +171,8 @@ struct UserSettingsResponse: Codable {
     var predictionLength: Int?
     var dreamAnalysisTimeRange: AnalysisTimeRange?
     var dreamReportTimeRange: ReportTimeRange?
+    var dreamReportLength: ReportLength?
+    var onlySelfRecordings: Bool?
     var statisticsStartDate: String?
 }
 

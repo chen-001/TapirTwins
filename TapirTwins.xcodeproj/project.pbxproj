@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3CB7E16F2D7710D700250997 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CB7E1502D77109A00250997 /* WidgetKit.framework */; };
+		3CB7E1702D7710D700250997 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CB7E1522D77109B00250997 /* SwiftUI.framework */; };
+		3CB7E1812D7710D800250997 /* DreamReminderWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3CB7E16E2D7710D700250997 /* DreamReminderWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		3C45389D2D71ECC700784C55 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +27,36 @@
 			remoteGlobalIDString = 3C45388B2D71ECC500784C55;
 			remoteInfo = TapirTwins;
 		};
+		3CB7E17F2D7710D800250997 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3C4538842D71ECC500784C55 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3CB7E16D2D7710D700250997;
+			remoteInfo = DreamReminderWidgetExtensionExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3CB7E1692D77109C00250997 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3CB7E1812D7710D800250997 /* DreamReminderWidgetExtensionExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		3C45388C2D71ECC500784C55 /* TapirTwins.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TapirTwins.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C45389C2D71ECC700784C55 /* TapirTwinsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TapirTwinsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C4538A62D71ECC700784C55 /* TapirTwinsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TapirTwinsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3CB7E1502D77109A00250997 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		3CB7E1522D77109B00250997 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		3CB7E16E2D7710D700250997 /* DreamReminderWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DreamReminderWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,6 +66,13 @@
 				Info.plist,
 			);
 			target = 3C45388B2D71ECC500784C55 /* TapirTwins */;
+		};
+		3CB7E1852D7710D800250997 /* Exceptions for "DreamReminderWidgetExtension" folder in "DreamReminderWidgetExtensionExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3CB7E16D2D7710D700250997 /* DreamReminderWidgetExtensionExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -56,6 +93,19 @@
 		3C4538A92D71ECC700784C55 /* TapirTwinsUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = TapirTwinsUITests;
+			sourceTree = "<group>";
+		};
+		3CB7E1542D77109B00250997 /* TapirWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TapirWidget;
+			sourceTree = "<group>";
+		};
+		3CB7E1712D7710D700250997 /* DreamReminderWidgetExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3CB7E1852D7710D800250997 /* Exceptions for "DreamReminderWidgetExtension" folder in "DreamReminderWidgetExtensionExtension" target */,
+			);
+			path = DreamReminderWidgetExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +132,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3CB7E16B2D7710D700250997 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3CB7E1702D7710D700250997 /* SwiftUI.framework in Frameworks */,
+				3CB7E16F2D7710D700250997 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,6 +150,9 @@
 				3C45388E2D71ECC500784C55 /* TapirTwins */,
 				3C45389F2D71ECC700784C55 /* TapirTwinsTests */,
 				3C4538A92D71ECC700784C55 /* TapirTwinsUITests */,
+				3CB7E1542D77109B00250997 /* TapirWidget */,
+				3CB7E1712D7710D700250997 /* DreamReminderWidgetExtension */,
+				3CB7E14F2D77109A00250997 /* Frameworks */,
 				3C45388D2D71ECC500784C55 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,8 +163,18 @@
 				3C45388C2D71ECC500784C55 /* TapirTwins.app */,
 				3C45389C2D71ECC700784C55 /* TapirTwinsTests.xctest */,
 				3C4538A62D71ECC700784C55 /* TapirTwinsUITests.xctest */,
+				3CB7E16E2D7710D700250997 /* DreamReminderWidgetExtensionExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		3CB7E14F2D77109A00250997 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				3CB7E1502D77109A00250997 /* WidgetKit.framework */,
+				3CB7E1522D77109B00250997 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -115,10 +187,12 @@
 				3C4538882D71ECC500784C55 /* Sources */,
 				3C4538892D71ECC500784C55 /* Frameworks */,
 				3C45388A2D71ECC500784C55 /* Resources */,
+				3CB7E1692D77109C00250997 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3CB7E1802D7710D800250997 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				3C45388E2D71ECC500784C55 /* TapirTwins */,
@@ -176,6 +250,28 @@
 			productReference = 3C4538A62D71ECC700784C55 /* TapirTwinsUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		3CB7E16D2D7710D700250997 /* DreamReminderWidgetExtensionExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3CB7E1822D7710D800250997 /* Build configuration list for PBXNativeTarget "DreamReminderWidgetExtensionExtension" */;
+			buildPhases = (
+				3CB7E16A2D7710D700250997 /* Sources */,
+				3CB7E16B2D7710D700250997 /* Frameworks */,
+				3CB7E16C2D7710D700250997 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3CB7E1712D7710D700250997 /* DreamReminderWidgetExtension */,
+			);
+			name = DreamReminderWidgetExtensionExtension;
+			packageProductDependencies = (
+			);
+			productName = DreamReminderWidgetExtensionExtension;
+			productReference = 3CB7E16E2D7710D700250997 /* DreamReminderWidgetExtensionExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -197,6 +293,9 @@
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 3C45388B2D71ECC500784C55;
 					};
+					3CB7E16D2D7710D700250997 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 				};
 			};
 			buildConfigurationList = 3C4538872D71ECC500784C55 /* Build configuration list for PBXProject "TapirTwins" */;
@@ -216,6 +315,7 @@
 				3C45388B2D71ECC500784C55 /* TapirTwins */,
 				3C45389B2D71ECC700784C55 /* TapirTwinsTests */,
 				3C4538A52D71ECC700784C55 /* TapirTwinsUITests */,
+				3CB7E16D2D7710D700250997 /* DreamReminderWidgetExtensionExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +336,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		3C4538A42D71ECC700784C55 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3CB7E16C2D7710D700250997 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +373,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3CB7E16A2D7710D700250997 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -278,6 +392,11 @@
 			isa = PBXTargetDependency;
 			target = 3C45388B2D71ECC500784C55 /* TapirTwins */;
 			targetProxy = 3C4538A72D71ECC700784C55 /* PBXContainerItemProxy */;
+		};
+		3CB7E1802D7710D800250997 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3CB7E16D2D7710D700250997 /* DreamReminderWidgetExtensionExtension */;
+			targetProxy = 3CB7E17F2D7710D800250997 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -416,9 +535,13 @@
 				INFOPLIST_FILE = TapirTwins/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "需要访问您的相册以保存梦境分享图片";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要访问您的相册以保存梦境分享图片";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
@@ -426,7 +549,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chenzongwei.TapirTwins;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -450,9 +573,13 @@
 				INFOPLIST_FILE = TapirTwins/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "需要访问您的相册以保存梦境分享图片";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要访问您的相册以保存梦境分享图片";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
@@ -460,7 +587,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chenzongwei.TapirTwins;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -537,6 +664,62 @@
 			};
 			name = Release;
 		};
+		3CB7E1832D7710D800250997 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T4NMM627DN;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DreamReminderWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DreamReminderWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chenzongwei.TapirTwins.DreamReminderWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3CB7E1842D7710D800250997 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T4NMM627DN;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DreamReminderWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DreamReminderWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chenzongwei.TapirTwins.DreamReminderWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -572,6 +755,15 @@
 			buildConfigurations = (
 				3C4538B72D71ECC700784C55 /* Debug */,
 				3C4538B82D71ECC700784C55 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3CB7E1822D7710D800250997 /* Build configuration list for PBXNativeTarget "DreamReminderWidgetExtensionExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CB7E1832D7710D800250997 /* Debug */,
+				3CB7E1842D7710D800250997 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
