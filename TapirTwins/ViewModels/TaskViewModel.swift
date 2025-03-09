@@ -725,7 +725,7 @@ class TaskViewModel: ObservableObject {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             
-            // ISO8601格式化器，用于解析任务创建日期
+            // ISO8601格式化器，用于解析任务创建日期和截止日期
             let isoFormatter = ISO8601DateFormatter()
             isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
@@ -786,6 +786,44 @@ class TaskViewModel: ObservableObject {
                 let taskCreationDateWithoutTime = calendar.date(from: taskCreationDateComponents) ?? taskCreationDate
                 let formattedCreationDate = dateFormatter.string(from: taskCreationDateWithoutTime)
                 
+                // 解析任务截止日期（如果有）
+                var taskDueDate: Date? = nil
+                if let dueDateString = task.dueDate {
+                    // 尝试使用各种格式解析截止日期
+                    if let isoDate = isoFormatter.date(from: dueDateString) {
+                        taskDueDate = isoDate
+                    } else {
+                        let simpleIsoFormatter = ISO8601DateFormatter()
+                        simpleIsoFormatter.formatOptions = [.withInternetDateTime]
+                        
+                        if let simpleIsoDate = simpleIsoFormatter.date(from: dueDateString) {
+                            taskDueDate = simpleIsoDate
+                        } else {
+                            let customFormatter = DateFormatter()
+                            customFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+                            
+                            if let customDate = customFormatter.date(from: dueDateString) {
+                                taskDueDate = customDate
+                            } else {
+                                let simpleDateFormatter = DateFormatter()
+                                simpleDateFormatter.dateFormat = "yyyy-MM-dd"
+                                
+                                if let simpleDate = simpleDateFormatter.date(from: dueDateString) {
+                                    taskDueDate = simpleDate
+                                }
+                            }
+                        }
+                    }
+                    
+                    if let dueDate = taskDueDate {
+                        let dueDateComponents = calendar.dateComponents([.year, .month, .day], from: dueDate)
+                        taskDueDate = calendar.date(from: dueDateComponents)
+                        print("任务[\(taskIndex)] (\(task.title)) 截止日期: \(dateFormatter.string(from: taskDueDate!))")
+                    } else {
+                        print("无法解析任务[\(taskIndex)] (\(task.title)) 的截止日期: \(dueDateString)")
+                    }
+                }
+                
                 print("任务[\(taskIndex)] (\(task.title)) 创建日期: \(formattedCreationDate)")
                 
                 // 获取任务的所有记录
@@ -801,6 +839,15 @@ class TaskViewModel: ObservableObject {
                     for dateString in dailyStats.keys {
                         // 将日期字符串转换为Date对象进行比较
                         guard let currentDate = dateFormatter.date(from: dateString) else {
+                            continue
+                        }
+                        
+                        // 检查当前日期是否超过了任务截止日期
+                        // 如果任务有截止日期，并且当前日期已经超过了截止日期，那么不统计这个任务
+                        if let dueDate = taskDueDate, currentDate > dueDate {
+                            if dateString == targetDate {
+                                print("日期 \(dateString) 已超过任务[\(taskIndex)] (\(task.title)) 的截止日期 \(dateFormatter.string(from: dueDate))，不计入统计")
+                            }
                             continue
                         }
                         

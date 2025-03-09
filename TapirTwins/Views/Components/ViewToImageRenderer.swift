@@ -76,172 +76,276 @@ struct ViewToImageRenderer {
         logMemoryUsage(context: "渲染开始")
         
         let startTime = CFAbsoluteTimeGetCurrent()
-        // 选择更可靠的渲染方法 - 降低高度阈值到2000，确保更稳定的渲染
-        if estimatedHeight > 2000 {
-            print("⚠️ 内容较高(\(estimatedHeight)pt)，使用分段渲染方法...")
-            let result = renderUsingTilingMethod(view: view, width: width, estimatedHeight: estimatedHeight)
-            
-            let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
-            print("⏱️ 渲染耗时: \(String(format: "%.2f", timeElapsed))秒")
-            logMemoryUsage(context: "渲染完成")
-            
-            return result
-        } else {
-            print("📏 内容长度适中，使用标准渲染...")
-            let result = renderWithBackground(view: view, size: CGSize(width: width, height: estimatedHeight))
-            
-            let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
-            print("⏱️ 渲染耗时: \(String(format: "%.2f", timeElapsed))秒")
-            logMemoryUsage(context: "渲染完成")
-            
-            return result
-        }
+        
+        // 使用更安全的分块渲染方法，不再区分长短内容
+        print("📐 使用高安全性分段渲染方法...")
+        let result = renderUsingSegmentMethod(view: view, width: width, estimatedHeight: estimatedHeight)
+        
+        let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
+        print("⏱️ 渲染耗时: \(String(format: "%.2f", timeElapsed))秒")
+        logMemoryUsage(context: "渲染完成")
+        
+        return result
     }
     
-    // 使用平铺方法渲染长内容 - 将长内容分成多个部分渲染，然后合并
-    private static func renderUsingTilingMethod(view: some View, width: CGFloat, estimatedHeight: CGFloat) -> UIImage? {
-        print("🧩 使用平铺渲染方法: 宽度=\(width), 总高度=\(estimatedHeight)")
+    // 使用更安全的分段渲染方法 - 每次只渲染一小部分内容
+    private static func renderUsingSegmentMethod(view: some View, width: CGFloat, estimatedHeight: CGFloat) -> UIImage? {
+        print("🔄 使用分段渲染方法: 宽度=\(width), 总高度=\(estimatedHeight)")
         
-        // 设置安全的单块高度限制
-        let maxTileHeight: CGFloat = 1600 // 比可靠值稍小，确保安全
+        // 使用较小的段高度，确保每段都能可靠渲染
+        let maxSegmentHeight: CGFloat = 800 // 更小的分段高度，增加稳定性
         
-        // 移除条件判断，始终使用分段渲染以保证完整内容
-        print("📐 内容长度为\(estimatedHeight)，使用分段平铺渲染")
+        // 计算需要的段数
+        let segmentsCount = Int(ceil(estimatedHeight / maxSegmentHeight))
+        print("🔢 需要渲染\(segmentsCount)个内容段")
         
-        // 计算需要的平铺块数
-        let tilesCount = Int(ceil(estimatedHeight / maxTileHeight))
-        print("🔢 需要渲染\(tilesCount)个内容块")
-        
-        // 准备画布，预先分配足够的内存
-        let finalSize = CGSize(width: width, height: estimatedHeight)
-        UIGraphicsBeginImageContextWithOptions(finalSize, true, 0)
-        
-        // 填充白色背景
+        // 创建一个带有背景的最终画布
+        UIGraphicsBeginImageContextWithOptions(CGSize(width: width, height: estimatedHeight), true, 0)
         UIColor.white.setFill()
-        UIRectFill(CGRect(origin: .zero, size: finalSize))
+        UIRectFill(CGRect(origin: .zero, size: CGSize(width: width, height: estimatedHeight)))
         
-        // 主机控制器设置
-        let hostingController = UIHostingController(rootView: view)
-        hostingController.view.backgroundColor = .white
+        // 成功标志
+        var success = true
         
-        // 添加到窗口以确保正确布局
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: 10))
+        // 一次性创建完整的根视图
+        let rootView = ZStack {
+            Color.white
+            view
+        }
+        let hostingController = UIHostingController(rootView: rootView)
+        hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: estimatedHeight)
+        
+        // 将视图添加到临时窗口，确保它正确布局
+        let window = UIApplication.shared.windows.first ?? UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: estimatedHeight))
         window.rootViewController = UIViewController()
         window.rootViewController?.view.addSubview(hostingController.view)
-        window.makeKeyAndVisible()
         
-        // 设置主视图尺寸
-        hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: estimatedHeight)
-        hostingController.view.layoutIfNeeded()
-        
-        var success = false
-        
-        // 尝试使用位图上下文分段渲染
-        if let context = UIGraphicsGetCurrentContext() {
-            // 遍历渲染每个分段
-            for i in 0..<tilesCount {
-                let tileY = CGFloat(i) * maxTileHeight
-                let tileHeight = min(maxTileHeight, estimatedHeight - tileY)
-                let tileRect = CGRect(x: 0, y: tileY, width: width, height: tileHeight)
-                
-                print("🔍 渲染第\(i+1)/\(tilesCount)块: y=\(tileY), 高度=\(tileHeight)")
-                
-                // 保存上下文状态
-                context.saveGState()
-                
-                // 裁剪到当前分段
-                context.clip(to: tileRect)
-                
-                // 偏移以适应当前分段
-                context.translateBy(x: 0, y: -tileY)
-                
-                // 渲染视图的这一部分
-                hostingController.view.layer.render(in: context)
-                
-                // 恢复上下文状态
-                context.restoreGState()
-                
-                print("✅ 第\(i+1)块渲染完成")
-            }
-            success = true
-        }
-        
-        // 获取合并后的图像
-        let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        if success && finalImage != nil {
-            print("🎉 分段渲染成功: \(finalImage?.size.width ?? 0) x \(finalImage?.size.height ?? 0)")
-            return finalImage
-        } else {
-            print("❌ 分段渲染失败，尝试备用方法...")
-            return fallbackForLongContent(view: view, width: width, estimatedHeight: estimatedHeight)
-        }
-    }
-    
-    // 超长内容的最后备用渲染方法
-    private static func fallbackForLongContent(view: some View, width: CGFloat, estimatedHeight: CGFloat) -> UIImage? {
-        print("🆘 使用超长内容备用渲染方法，保持完整高度\(estimatedHeight)")
-        
-        // 不再限制高度，使用完整估计高度
-        let renderHeight = estimatedHeight
-        
-        // 创建一个滚动视图来容纳内容
-        let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: width, height: renderHeight))
-        scrollView.contentSize = CGSize(width: width, height: renderHeight)
-        scrollView.backgroundColor = .white
-        
-        // 创建一个SwiftUI主机控制器
-        let hostingController = UIHostingController(rootView: view)
-        hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: renderHeight)
-        hostingController.view.backgroundColor = .white
-        
-        // 将SwiftUI视图添加到滚动视图
-        scrollView.addSubview(hostingController.view)
-        
-        // 确保布局完成
+        // 确保视图已经布局
         hostingController.view.setNeedsLayout()
         hostingController.view.layoutIfNeeded()
         
-        // 创建分段渲染的图像
-        let maxSegmentHeight: CGFloat = 1200
-        let segmentsCount = Int(ceil(renderHeight / maxSegmentHeight))
+        // 检查获取的图形上下文
+        guard let context = UIGraphicsGetCurrentContext() else {
+            print("❌ 无法获取图形上下文")
+            return createEmptyImage(width: width, height: estimatedHeight)
+        }
         
-        print("📏 分割为\(segmentsCount)个段进行备用渲染")
-        
-        // 创建一个大型画布
-        UIGraphicsBeginImageContextWithOptions(CGSize(width: width, height: renderHeight), true, 0)
-        UIColor.white.setFill()
-        UIRectFill(CGRect(x: 0, y: 0, width: width, height: renderHeight))
-        
+        // 对每个分段分别进行渲染
         for i in 0..<segmentsCount {
             let segmentY = CGFloat(i) * maxSegmentHeight
-            let segmentHeight = min(maxSegmentHeight, renderHeight - segmentY)
+            let segmentHeight = min(maxSegmentHeight, estimatedHeight - segmentY)
+            let segmentRect = CGRect(x: 0, y: segmentY, width: width, height: segmentHeight)
             
-            print("📍 备用渲染段\(i+1)/\(segmentsCount): y=\(segmentY), 高度=\(segmentHeight)")
+            print("🔍 渲染第\(i+1)/\(segmentsCount)段: y=\(segmentY), 高度=\(segmentHeight)")
             
-            // 设置滚动视图的内容偏移
-            scrollView.contentOffset = CGPoint(x: 0, y: segmentY)
+            // 保存当前图形状态
+            context.saveGState()
             
-            // 渲染当前可见部分
-            if let context = UIGraphicsGetCurrentContext() {
-                context.saveGState()
-                context.translateBy(x: 0, y: segmentY)
-                scrollView.layer.render(in: context)
-                context.restoreGState()
+            // 裁剪到当前分段范围
+            context.clip(to: segmentRect)
+            
+            // 设置适当的偏移，使视图在正确位置渲染
+            context.translateBy(x: 0, y: -segmentY)
+            
+            // 渲染视图
+            hostingController.view.layer.render(in: context)
+            
+            // 恢复图形状态
+            context.restoreGState()
+            
+            print("✅ 第\(i+1)段渲染完成")
+            
+            // 每渲染几段后刷新上下文，减少内存压力
+            if i % 3 == 2 {
+                UIGraphicsGetCurrentContext()?.flush()
+                logMemoryUsage(context: "渲染\(i+1)段后")
             }
         }
         
+        // 获取最终图像
         let finalImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         
         if let image = finalImage {
-            print("✅ 备用渲染成功: \(image.size.width) x \(image.size.height)")
+            print("🎉 分段渲染成功: \(image.size.width) x \(image.size.height)")
             return image
         } else {
-            print("❌ 所有渲染方法都失败，返回空白图像")
-            return createEmptyImage(width: width, height: 300) // 创建一个小的空白图像作为最后手段
+            print("❌ 分段渲染失败，尝试备用方法")
+            return renderUsingMultipleImages(view: view, width: width, estimatedHeight: estimatedHeight)
         }
+    }
+    
+    // 使用多个小图片拼接的方法渲染长内容
+    private static func renderUsingMultipleImages(view: some View, width: CGFloat, estimatedHeight: CGFloat) -> UIImage? {
+        print("🧩 使用多图拼接渲染: 宽度=\(width), 总高度=\(estimatedHeight)")
+        
+        // 使用更小的段高度，确保每段都能可靠渲染
+        let segmentHeight: CGFloat = 600
+        
+        // 使用更科学的方法计算段数和总高度
+        // 向上取整以确保覆盖全部内容
+        let segmentsCount = Int(ceil(estimatedHeight / segmentHeight))
+        // 重新计算实际总高度，确保没有多余空白
+        let actualTotalHeight = CGFloat(segmentsCount) * segmentHeight
+        
+        print("📊 将内容分为\(segmentsCount)个段进行独立渲染，实际总高度=\(actualTotalHeight)")
+        
+        // 创建一个数组来存储每个段的图像
+        var segmentImages: [UIImage] = []
+        
+        // 创建一个固定尺寸的视图容器，用于准确裁切
+        let fixedSizeContainer = UIView(frame: CGRect(x: 0, y: 0, width: width, height: estimatedHeight))
+        fixedSizeContainer.backgroundColor = .white
+        
+        // 创建主视图控制器
+        let hostingController = UIHostingController(rootView: ZStack {
+            Color.white
+            view
+        })
+        hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: estimatedHeight)
+        
+        // 添加主视图到容器
+        fixedSizeContainer.addSubview(hostingController.view)
+        
+        // 确保视图已完全布局
+        hostingController.view.setNeedsLayout()
+        hostingController.view.layoutIfNeeded()
+        
+        // 渲染每个段
+        for i in 0..<segmentsCount {
+            // 计算当前段的起始位置和高度
+            let startY = CGFloat(i) * segmentHeight
+            // 确保最后一段不超出总高度
+            let currentHeight = min(segmentHeight, estimatedHeight - startY)
+            
+            print("🔍 渲染段\(i+1)/\(segmentsCount): 起始位置y=\(startY), 高度=\(currentHeight)")
+            
+            // 使用简单直接的图像提取方法
+            let segmentRenderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: currentHeight))
+            let segmentImage = segmentRenderer.image { context in
+                // 填充白色背景
+                UIColor.white.setFill()
+                context.fill(CGRect(origin: .zero, size: CGSize(width: width, height: currentHeight)))
+                
+                // 平移上下文以显示正确部分
+                context.cgContext.translateBy(x: 0, y: -startY)
+                
+                // 剪裁到当前段
+                context.cgContext.clip(to: CGRect(x: 0, y: startY, width: width, height: currentHeight))
+                
+                // 渲染整个视图，但只保留当前段
+                hostingController.view.layer.render(in: context.cgContext)
+            }
+            
+            segmentImages.append(segmentImage)
+            print("✅ 段\(i+1)渲染完成: \(segmentImage.size.width) x \(segmentImage.size.height)")
+        }
+        
+        // 创建最终图像画布
+        UIGraphicsBeginImageContextWithOptions(CGSize(width: width, height: estimatedHeight), true, 0)
+        
+        // 填充白色背景
+        UIColor.white.setFill()
+        UIRectFill(CGRect(origin: .zero, size: CGSize(width: width, height: estimatedHeight)))
+        
+        // 准确放置每个段
+        for i in 0..<segmentImages.count {
+            let exactYPosition = CGFloat(i) * segmentHeight
+            print("📌 放置段\(i+1)到位置y=\(exactYPosition)")
+            
+            // 在精确位置绘制图像段
+            segmentImages[i].draw(at: CGPoint(x: 0, y: exactYPosition))
+        }
+        
+        // 获取最终合成图像
+        let finalImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        if let image = finalImage {
+            print("🎉 多图片拼接成功: \(image.size.width) x \(image.size.height)")
+            return image
+        } else {
+            print("❌ 图片拼接失败，尝试备用方法")
+            // 尝试使用单片段渲染
+            return renderSinglePiece(view: view, width: width, estimatedHeight: estimatedHeight)
+        }
+    }
+    
+    // 单片段渲染方法 - 最终的备用方案
+    private static func renderSinglePiece(view: some View, width: CGFloat, estimatedHeight: CGFloat) -> UIImage? {
+        print("⚠️ 使用单片段渲染方法")
+        
+        // 创建一个简单的视图
+        let simpleView = ZStack {
+            Color.white
+            view
+        }
+        
+        // 使用最基本的方法渲染
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: estimatedHeight))
+        
+        let image = renderer.image { ctx in
+            // 填充白色背景
+            UIColor.white.set()
+            ctx.fill(CGRect(origin: .zero, size: CGSize(width: width, height: estimatedHeight)))
+            
+            // 创建主机控制器并设置视图
+            let hostingController = UIHostingController(rootView: simpleView)
+            hostingController.view.frame = CGRect(origin: .zero, size: CGSize(width: width, height: estimatedHeight))
+            
+            // 确保视图已布局
+            hostingController.view.setNeedsLayout()
+            hostingController.view.layoutIfNeeded()
+            
+            // 如果内容超过2000像素，分段渲染
+            if estimatedHeight > 2000 {
+                // 分段渲染上半部分
+                let topPart = min(1800, estimatedHeight * 0.6)
+                ctx.cgContext.saveGState()
+                ctx.cgContext.clip(to: CGRect(x: 0, y: 0, width: width, height: topPart))
+                hostingController.view.layer.render(in: ctx.cgContext)
+                ctx.cgContext.restoreGState()
+                
+                // 渲染下半部分
+                if estimatedHeight > topPart {
+                    ctx.cgContext.saveGState()
+                    ctx.cgContext.clip(to: CGRect(x: 0, y: topPart, width: width, height: estimatedHeight - topPart))
+                    ctx.cgContext.translateBy(x: 0, y: -topPart)
+                    hostingController.view.layer.render(in: ctx.cgContext)
+                    ctx.cgContext.restoreGState()
+                }
+            } else {
+                // 直接渲染整个内容
+                hostingController.view.layer.render(in: ctx.cgContext)
+            }
+        }
+        
+        return image
+    }
+    
+    // 极度简化的渲染方法 - 最后的后备方案
+    private static func renderSimplifiedVersion(view: some View, width: CGFloat, estimatedHeight: CGFloat) -> UIImage? {
+        print("⚠️ 使用极度简化方法")
+        
+        // 创建一个带有最小内容的视图
+        let simplifiedView = ZStack {
+            Color.white
+            VStack(spacing: 20) {
+                Text("报告内容过长")
+                    .font(.system(size: 20, weight: .bold))
+                Text("请尝试分享较短的报告")
+                    .font(.system(size: 16))
+                
+                // 尽可能显示原视图的顶部内容
+                view
+                    .frame(width: width, height: min(estimatedHeight, 1200))
+                    .clipped()
+            }
+            .padding()
+        }
+        
+        // 使用标准渲染方法
+        return render(view: simplifiedView, size: CGSize(width: width, height: min(estimatedHeight, 1600)))
     }
     
     // 创建空白图像的辅助方法

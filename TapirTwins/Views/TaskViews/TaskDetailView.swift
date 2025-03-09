@@ -35,6 +35,7 @@ struct TaskDetailView: View {
     @State private var rejectReason = ""
     @State private var selectedRecord: TaskRecord? = nil
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
         ScrollView {
@@ -74,6 +75,15 @@ struct TaskDetailView: View {
                                 .foregroundColor(themeColorDark)
                             Text("需要图片: \(task.requiredImages)张")
                                 .font(.subheadline)
+                                .foregroundColor(Color.black.opacity(0.6))
+                        }
+                        
+                        // 创建时间不是可选类型，直接显示
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundColor(themeColorDark)
+                            Text("创建时间: \(formatDate(task.createdAt))")
+                                .font(.caption)
                                 .foregroundColor(Color.black.opacity(0.6))
                         }
                         
@@ -204,7 +214,14 @@ struct TaskDetailView: View {
                 title: Text("删除任务"),
                 message: Text("确定要删除这个任务吗？此操作不可撤销。"),
                 primaryButton: .destructive(Text("删除"), action: {
-                    viewModel.deleteTask(taskId: task.id) { _ in }
+                    viewModel.deleteTask(taskId: task.id) { success in
+                        if success {
+                            // 删除成功后返回到任务列表页面
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                self.presentationMode.wrappedValue.dismiss()
+                            }
+                        }
+                    }
                 }),
                 secondaryButton: .cancel(Text("取消"))
             )
@@ -342,13 +359,13 @@ struct TaskDetailView: View {
     }
     
     private func formatDate(_ dateString: String) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
         
-        if let date = dateFormatter.date(from: dateString) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateFormat = "yyyy年MM月dd日 HH:mm"
-            return displayFormatter.string(from: date)
+        if let date = inputFormatter.date(from: dateString) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "yyyy-MM-dd"
+            return outputFormatter.string(from: date)
         }
         
         return dateString

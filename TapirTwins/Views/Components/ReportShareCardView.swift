@@ -201,12 +201,12 @@ struct ReportShareCardView: View {
                     Spacer()
                     
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text("TAPIRTWINS")
+                        Text("TAPIR TWINS")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(textColor)
                             .shadow(color: Color.black.opacity(0.2), radius: 1, x: 1, y: 1)
                         
-                        Text("貘貘梦境日记")
+                        Text("AI梦境解析")
                             .font(.system(size: 14))
                             .foregroundColor(secondaryTextColor)
                             .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: 1)

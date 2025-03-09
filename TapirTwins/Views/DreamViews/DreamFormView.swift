@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 enum FormMode {
     case add
@@ -13,6 +14,14 @@ struct DreamFormView: View {
     @State private var title = ""
     @State private var content = ""
     @State private var date = Date()
+    @State private var keyboardHeight: CGFloat = 0
+    @State private var contentHeight: CGFloat = 0
+    @State private var scrollOffset: CGFloat = 0
+    
+    // 用于监听键盘事件
+    @State private var keyboardPublisher = NotificationCenter.default
+        .publisher(for: UIResponder.keyboardWillShowNotification)
+        .merge(with: NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification))
     
     @Environment(\.presentationMode) var presentationMode
     
@@ -52,74 +61,166 @@ struct DreamFormView: View {
                 StarsView()
                     .opacity(0.3)
                 
-                VStack(spacing: 20) {
-                    // 标题区域
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("梦境标题")
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.9))
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // 标题区域
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("梦境标题")
+                                .font(.headline)
+                                .foregroundColor(.white.opacity(0.9))
+                            
+                            TextField("", text: $title)
+                                .padding()
+                                .background(Color.white.opacity(0.2))
+                                .cornerRadius(10)
+                                .foregroundColor(.white)
+                                .accentColor(.white)
+                                .placeholder(when: title.isEmpty) {
+                                    Text("输入梦境标题...")
+                                        .foregroundColor(.white.opacity(0.6))
+                                        .padding(.leading, 5)
+                                }
+                        }
+                        .padding(.horizontal)
                         
-                        TextField("", text: $title)
-                            .padding()
-                            .background(Color.white.opacity(0.2))
-                            .cornerRadius(10)
-                            .foregroundColor(.white)
-                            .accentColor(.white)
-                            .placeholder(when: title.isEmpty) {
-                                Text("输入梦境标题...")
-                                    .foregroundColor(.white.opacity(0.6))
-                                    .padding(.leading, 5)
+                        // 日期选择
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("日期")
+                                .font(.headline)
+                                .foregroundColor(.white.opacity(0.9))
+                            
+                            DatePicker("", selection: $date, displayedComponents: .date)
+                                .datePickerStyle(WheelDatePickerStyle())
+                                .labelsHidden()
+                                .background(Color.white.opacity(0.2))
+                                .cornerRadius(10)
+                                .colorScheme(.dark)
+                                .accentColor(.white)
+                        }
+                        .padding(.horizontal)
+                        
+                        // 内容区域
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("梦境内容")
+                                .font(.headline)
+                                .foregroundColor(.white.opacity(0.9))
+                            
+                            ZStack(alignment: .topLeading) {
+                                if content.isEmpty {
+                                    Text("描述你的梦境...")
+                                        .foregroundColor(.white.opacity(0.6))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 12)
+                                }
+                                
+                                TextEditor(text: $content)
+                                    .frame(minHeight: 200)
+                                    .padding(4)
+                                    .background(Color.white.opacity(0.9))
+                                    .foregroundColor(.black)
+                                    .accentColor(.blue)
+                                    .cornerRadius(8)
+                                    .opacity(content.isEmpty ? 0.7 : 1)
+                                    .background(
+                                        GeometryReader { geo in
+                                            Color.clear.preference(
+                                                key: ViewHeightKey.self,
+                                                value: geo.frame(in: .local).size.height
+                                            )
+                                        }
+                                    )
+                                    .onPreferenceChange(ViewHeightKey.self) { height in
+                                        self.contentHeight = height
+                                    }
                             }
-                    }
-                    .padding(.horizontal)
-                    
-                    // 日期选择
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("日期")
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.9))
-                        
-                        DatePicker("", selection: $date, displayedComponents: .date)
-                            .datePickerStyle(WheelDatePickerStyle())
-                            .labelsHidden()
                             .background(Color.white.opacity(0.2))
                             .cornerRadius(10)
-                            .colorScheme(.dark)
-                            .accentColor(.white)
-                    }
-                    .padding(.horizontal)
-                    
-                    // 内容区域
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("梦境内容")
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.9))
+                        }
+                        .padding(.horizontal)
                         
-                        ZStack(alignment: .topLeading) {
-                            if content.isEmpty {
-                                Text("描述你的梦境...")
-                                    .foregroundColor(.white.opacity(0.6))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 12)
+                        // 添加额外的空间，确保键盘弹出时内容可以滚动到可见区域
+                        Spacer()
+                            .frame(height: max(0, keyboardHeight - 100))
+                        
+                        // 底部Logo（增强版）
+                        VStack(spacing: 10) {
+                            HStack(spacing: 6) {
+                                // 左侧星星
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.yellow.opacity(0.8))
+                                
+                                // 貘图像
+                                Image("mo")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 42, height: 42)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(
+                                                LinearGradient(
+                                                    gradient: Gradient(colors: [.purple, .blue]),
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 2
+                                            )
+                                    )
+                                    .shadow(color: Color.purple.opacity(0.5), radius: 6)
+                                
+                                // 右侧星星
+                                Image(systemName: "moon.stars")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.yellow.opacity(0.8))
                             }
                             
-                            TextEditor(text: $content)
-                                .frame(minHeight: 200)
-                                .padding(4)
-                                .background(Color.white.opacity(0.9))
-                                .foregroundColor(.black)
-                                .accentColor(.blue)
-                                .cornerRadius(8)
-                                .opacity(content.isEmpty ? 0.7 : 1)
+                            Text("貘貘梦境TapirTwins")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                                .shadow(color: .black.opacity(0.3), radius: 1)
                         }
-                        .background(Color.white.opacity(0.2))
-                        .cornerRadius(10)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color(red: 0.2, green: 0.2, blue: 0.4, opacity: 0.7),
+                                            Color(red: 0.4, green: 0.3, blue: 0.6, opacity: 0.7)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: Color.black.opacity(0.3), radius: 4)
+                        )
+                        .padding(.bottom, 16)
                     }
-                    .padding(.horizontal)
-                    
-                    Spacer()
+                    .padding(.top, 20)
+                    .animation(.default, value: keyboardHeight)
                 }
-                .padding(.top, 20)
+                .onReceive(keyboardPublisher) { notification in
+                    withAnimation {
+                        if notification.name == UIResponder.keyboardWillShowNotification {
+                            if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                                self.keyboardHeight = keyboardFrame.height
+                            }
+                        } else {
+                            self.keyboardHeight = 0
+                        }
+                    }
+                }
+                // 监听内容变化，自动滚动到底部
+                .onChange(of: content) { newValue in
+                    // 当内容变化且键盘显示时，确保滚动到底部
+                    if keyboardHeight > 0 && !newValue.isEmpty {
+                        withAnimation {
+                            scrollOffset = contentHeight
+                        }
+                    }
+                }
             }
             .navigationTitle(isEditMode ? "编辑梦境" : "新梦境")
             .navigationBarTitleDisplayMode(.inline)
@@ -205,6 +306,14 @@ struct DreamFormView: View {
             },
             set: { _ in viewModel.errorMessage = nil }
         )
+    }
+}
+
+// 用于测量视图高度的PreferenceKey
+struct ViewHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
